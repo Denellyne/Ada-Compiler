@@ -7,7 +7,7 @@ void yyerror (char const *);
 %}
 %code requires{
 
-#include "ast.h"
+#include "Ast/ast.h"
 }
 %union{
   Stm stm;
@@ -29,6 +29,13 @@ void yyerror (char const *);
 %token TOK_END_STATEMENT
 %token   TOK_LP
 %token   TOK_RP
+%token TOK_BEGIN
+%token TOK_END
+%token TOK_PROC
+%token TOK_IS
+%token TOK_MAIN
+%token TOK_PUTLINE
+
 %left TOK_OP_ADD TOK_OP_MINUS '+' '-'
 %left TOK_OP_MULT TOK_OP_DIV '*' '/'
 %left TOK_END_STATEMENT
@@ -38,7 +45,7 @@ void yyerror (char const *);
 
 %%
 
-top : stmt                    { printf("Printing AST:\n");printStm($1); }
+top : TOK_PROC TOK_MAIN TOK_IS TOK_BEGIN stmt TOK_END TOK_MAIN TOK_END_STATEMENT  { printf("Printing AST:\n");printStm($5); }
     ;
 
 stmt : stme stmt  { $$ = mkCompound($1,$2);}  

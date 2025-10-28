@@ -47,6 +47,25 @@ Stm mkIncr(char *id) {
   ptr->ident = id;
   return ptr;
 }
+Func mkFunc(char *id, int returnValue, int numArgs, ...) {
+
+  Func ptr = (Func)malloc(sizeof(struct _func));
+  ptr->ident = id;
+  ptr->returnValueTag = returnValue;
+  ptr->numArgs = numArgs;
+
+  Arg args = ptr->args;
+
+  va_list list;
+  va_start(list, numArgs);
+  for (int i = 0; i < numArgs; i++) {
+    *args = *va_arg(list, Arg);
+    args = (*args).nextArg;
+  }
+  va_end(list);
+  return ptr;
+}
+
 void printStm(Stm ptr) {
 
   if (ptr == NULL)

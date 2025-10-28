@@ -1,6 +1,10 @@
 #ifndef AST
 #define AST
+#define INT 0
+#define STRING 1
+#define VOID 2
 
+#include <stdarg.h>
 #include <stdlib.h>
 typedef enum { PLUS, MINUS, TIMES, DIV } binop;
 struct _exp {
@@ -30,12 +34,31 @@ struct _stm {
 };
 typedef struct _stm *Stm;
 
+struct _args {
+  char *id;
+  int typeTag;
+  struct _args *nextArg;
+};
+typedef struct _args *Arg;
+
+struct _func {
+  enum { rVoid, rInt, rString } returnValue;
+
+  char *ident;
+  int returnValueTag;
+  int numArgs;
+  struct _args *args;
+  Stm stm;
+};
+typedef struct _func *Func;
+
 Exp mkNum(double v);
 Exp mkBinOp(Exp lExp, binop op, Exp rExp);
 Exp mkId(char *id);
 Stm mkCompound(Stm lStm, Stm rStm);
 Stm mkAssign(char *id, Exp exp);
 Stm mkIncr(char *id);
+Func mkFunc(char *id, int returnValue, int numArgs, ...);
 void printStm(Stm);
 void printExp(Exp);
 void printOp(binop op);
