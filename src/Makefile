@@ -29,4 +29,4 @@ run : build
 	$(OUTPUT)
 	
 clean :
-	rm parser.tab.h $(OUTPUT) $(OBJ)
+	rm lex.yy.c parser.tab.h parser.tab.c $(OUTPUT) $(OBJ)

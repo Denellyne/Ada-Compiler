@@ -1,2 +1,4 @@
 *.o
+src/lex.yy.c 
+src/parser.tab.*
 bin/
