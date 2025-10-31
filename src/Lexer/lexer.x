@@ -22,17 +22,44 @@ alpha [_a-zA-Z]
 "is" {printf("%s\n",yytext); return TOK_IS;}
 "Main" {printf("%s\n",yytext); return TOK_MAIN;}
 "Put_Line" {printf("%s\n",yytext); return TOK_PUTLINE;}
+"Get_Line" {printf("%s\n",yytext); return TOK_GETLINE;}
+"loop" {printf("%s\n",yytext); return TOK_LOOP;}
 
-"=" {printf("%s\n",yytext); return TOK_ASSIGN;}
-"++" {printf("%s\n",yytext); return TOK_INCR;}
+"String" {printf("%s\n",yytext); return TOK_STRING;}
+"Natural" {printf("%s\n",yytext); return TOK_INTEGER;}
+"Integer" {printf("%s\n",yytext); return TOK_INTEGER;}
+"Boolean" {printf("%s\n",yytext); return TOK_BOOL;}
+
+
+"not" {printf("%s\n",yytext); return TOK_NOT;}
+"or" {printf("%s\n",yytext); return TOK_OR;}
+"and" {printf("%s\n",yytext); return TOK_AND;}
+"if" {printf("%s\n",yytext); return TOK_IF;}
+"while" {printf("%s\n",yytext); return TOK_WHILE;}
+"else" {printf("%s\n",yytext); return TOK_ELSE;}
+"elsif" {printf("%s\n",yytext); return TOK_ELSEIF;}
+"then" {printf("%s\n",yytext); return TOK_THEN;}
+"xor" {printf("%s\n",yytext); return TOK_XOR;}
+
+
+
+"=" {printf("%s\n",yytext); return TOK_EQ;}
+"/=" {printf("%s\n",yytext); return TOK_NOTEQ;}
+":=" {printf("%s\n",yytext); return TOK_ASSIGN;}
+"<=" {printf("%s\n",yytext); return TOK_LESSEQ;}
+">=" {printf("%s\n",yytext); return TOK_GREATEREQ;}
+"<" {printf("%s\n",yytext); return TOK_LESS;}
+">" {printf("%s\n",yytext); return TOK_GREATER;}
+
 "+" {printf("%s\n",yytext); return TOK_OP_ADD;}
 "-" {printf("%s\n",yytext); return TOK_OP_MINUS;}
 "*" {printf("%s\n",yytext); return TOK_OP_MULT;}
 "/" {printf("%s\n",yytext); return TOK_OP_DIV;}
-
+":" {printf("%s\n",yytext); return TOK_COLON;}
 "(" {printf("(\n"); return TOK_LP;}
 ")" {printf(")\n"); return TOK_RP;}
 ";" {printf(";\n"); return TOK_END_STATEMENT;}
+"," {printf(";\n"); return TOK_COMMA;}
 
 {digit}+ {printf("%s\n",yytext); yylval.num = (double)atoi(yytext); return TOK_NUM;}
 {digit}+"."{digit}+ {printf("%s\n",yytext); yylval.num = atof(yytext); return TOK_NUM;}

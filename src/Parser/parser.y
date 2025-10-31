@@ -21,7 +21,6 @@ void yyerror (char const *);
 %token <num> TOK_NUM
 %token <str> TOK_ID
 %token TOK_ASSIGN
-%token TOK_INCR
 %token TOK_OP_ADD
 %token  TOK_OP_MINUS
 %token  TOK_OP_MULT
@@ -35,6 +34,31 @@ void yyerror (char const *);
 %token TOK_IS
 %token TOK_MAIN
 %token TOK_PUTLINE
+%token TOK_GETLINE
+%token TOK_EQ
+%token TOK_NOTEQ
+%token TOK_NOT
+%token TOK_OR
+%token TOK_AND
+%token TOK_IF
+%token TOK_ELSE
+%token TOK_ELSEIF
+%token TOK_XOR
+%token TOK_COLON
+%token TOK_THEN
+%token TOK_WHILE
+%token TOK_COMMA
+%token TOK_LOOP
+%token TOK_STRING
+%token TOK_LESSEQ
+%token TOK_GREATEREQ
+%token TOK_LESS
+%token TOK_GREATER
+%token TOK_INTEGER
+%token TOK_BOOL
+
+
+
 
 %left TOK_OP_ADD TOK_OP_MINUS '+' '-'
 %left TOK_OP_MULT TOK_OP_DIV '*' '/'
@@ -52,7 +76,6 @@ stmt : stme stmt  { $$ = mkCompound($1,$2);}
      | stme {$$ = $1;}
      ;
 stme : TOK_ID TOK_ASSIGN expr TOK_END_STATEMENT{$$ = mkAssign($1,$3);}
-     | TOK_ID TOK_INCR TOK_END_STATEMENT{$$ = mkIncr($1);}
      ;
 
 expr : term {$$ =$1;}

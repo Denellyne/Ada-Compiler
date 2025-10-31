@@ -1,8 +1,9 @@
 CXX = gcc
 CFLAGS = -lm
 OUTPUT = ../bin/ada
-INCLUDES := $(shell find . -name '*.c')
-OBJ := $(patsubst %.c,%.o,$(INCLUDES))
+INCLUDES := ./lex.yy.c ./parser.tab.c $(shell find . -name '*.c')
+OBJ_TEMP =  $(patsubst %.c,%.o,$(INCLUDES))
+OBJ = $(sort $(OBJ_TEMP))
 
 
 all : build
@@ -12,13 +13,13 @@ all : build
 	$(CXX) $(CFLAGS) -c $< -o $@  	
 	@echo "Compiled:" $@
 
-parser.tab.c :
+parser :
 	@bison -Wcounterexamples -d Parser/parser.y
 
-lex.yy.c : 
+lex : 
 	@flex Lexer/lexer.x
 
-build : parser.tab.c lex.yy.c $(OBJ)
+build : parser lex $(OBJ)
 	@echo "Builidng"
 	@mkdir -p ../bin
 	$(CXX) -o $(OUTPUT) $(OBJ) -lm
@@ -28,4 +29,4 @@ run : build
 	$(OUTPUT)
 	
 clean :
-	rm lex.yy.c parser.tab.* $(OUTPUT) $(OBJ)
+	rm parser.tab.h $(OUTPUT) $(OBJ)

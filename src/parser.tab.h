@@ -64,20 +64,41 @@ extern int yydebug;
     TOK_NUM = 258,                 /* TOK_NUM  */
     TOK_ID = 259,                  /* TOK_ID  */
     TOK_ASSIGN = 260,              /* TOK_ASSIGN  */
-    TOK_INCR = 261,                /* TOK_INCR  */
-    TOK_OP_ADD = 262,              /* TOK_OP_ADD  */
-    TOK_OP_MINUS = 263,            /* TOK_OP_MINUS  */
-    TOK_OP_MULT = 264,             /* TOK_OP_MULT  */
-    TOK_OP_DIV = 265,              /* TOK_OP_DIV  */
-    TOK_END_STATEMENT = 266,       /* TOK_END_STATEMENT  */
-    TOK_LP = 267,                  /* TOK_LP  */
-    TOK_RP = 268,                  /* TOK_RP  */
-    TOK_BEGIN = 269,               /* TOK_BEGIN  */
-    TOK_END = 270,                 /* TOK_END  */
-    TOK_PROC = 271,                /* TOK_PROC  */
-    TOK_IS = 272,                  /* TOK_IS  */
-    TOK_MAIN = 273,                /* TOK_MAIN  */
-    TOK_PUTLINE = 274              /* TOK_PUTLINE  */
+    TOK_OP_ADD = 261,              /* TOK_OP_ADD  */
+    TOK_OP_MINUS = 262,            /* TOK_OP_MINUS  */
+    TOK_OP_MULT = 263,             /* TOK_OP_MULT  */
+    TOK_OP_DIV = 264,              /* TOK_OP_DIV  */
+    TOK_END_STATEMENT = 265,       /* TOK_END_STATEMENT  */
+    TOK_LP = 266,                  /* TOK_LP  */
+    TOK_RP = 267,                  /* TOK_RP  */
+    TOK_BEGIN = 268,               /* TOK_BEGIN  */
+    TOK_END = 269,                 /* TOK_END  */
+    TOK_PROC = 270,                /* TOK_PROC  */
+    TOK_IS = 271,                  /* TOK_IS  */
+    TOK_MAIN = 272,                /* TOK_MAIN  */
+    TOK_PUTLINE = 273,             /* TOK_PUTLINE  */
+    TOK_GETLINE = 274,             /* TOK_GETLINE  */
+    TOK_EQ = 275,                  /* TOK_EQ  */
+    TOK_NOTEQ = 276,               /* TOK_NOTEQ  */
+    TOK_NOT = 277,                 /* TOK_NOT  */
+    TOK_OR = 278,                  /* TOK_OR  */
+    TOK_AND = 279,                 /* TOK_AND  */
+    TOK_IF = 280,                  /* TOK_IF  */
+    TOK_ELSE = 281,                /* TOK_ELSE  */
+    TOK_ELSEIF = 282,              /* TOK_ELSEIF  */
+    TOK_XOR = 283,                 /* TOK_XOR  */
+    TOK_COLON = 284,               /* TOK_COLON  */
+    TOK_THEN = 285,                /* TOK_THEN  */
+    TOK_WHILE = 286,               /* TOK_WHILE  */
+    TOK_COMMA = 287,               /* TOK_COMMA  */
+    TOK_LOOP = 288,                /* TOK_LOOP  */
+    TOK_STRING = 289,              /* TOK_STRING  */
+    TOK_LESSEQ = 290,              /* TOK_LESSEQ  */
+    TOK_GREATEREQ = 291,           /* TOK_GREATEREQ  */
+    TOK_LESS = 292,                /* TOK_LESS  */
+    TOK_GREATER = 293,             /* TOK_GREATER  */
+    TOK_INTEGER = 294,             /* TOK_INTEGER  */
+    TOK_BOOL = 295                 /* TOK_BOOL  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -93,7 +114,7 @@ union YYSTYPE
   double num;
   char* str;
 
-#line 97 "parser.tab.h"
+#line 118 "parser.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
