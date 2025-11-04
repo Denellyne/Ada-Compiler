@@ -40,30 +40,34 @@ alpha [_a-zA-Z]
 "elsif" {printf("%s\n",yytext); return TOK_ELSEIF;}
 "then" {printf("%s\n",yytext); return TOK_THEN;}
 "xor" {printf("%s\n",yytext); return TOK_XOR;}
+"True" {printf("%s\n",yytext); return TOK_TRUE;}
+"False" {printf("%s\n",yytext); return TOK_FALSE;}
 
 
 
-"=" {printf("%s\n",yytext); return TOK_EQ;}
-"/=" {printf("%s\n",yytext); return TOK_NOTEQ;}
-":=" {printf("%s\n",yytext); return TOK_ASSIGN;}
-"<=" {printf("%s\n",yytext); return TOK_LESSEQ;}
-">=" {printf("%s\n",yytext); return TOK_GREATEREQ;}
-"<" {printf("%s\n",yytext); return TOK_LESS;}
-">" {printf("%s\n",yytext); return TOK_GREATER;}
+"=" {printf("=\n"); return TOK_EQ;}
+"/=" {printf("/=\n"); return TOK_NOTEQ;}
+":=" {printf(":=\n"); return TOK_ASSIGN;}
+"<=" {printf("<=\n"); return TOK_LESSEQ;}
+">=" {printf(">=\n"); return TOK_GREATEREQ;}
+"<" {printf("<\n"); return TOK_LESS;}
+">" {printf(">\n"); return TOK_GREATER;}
 
-"+" {printf("%s\n",yytext); return TOK_OP_ADD;}
-"-" {printf("%s\n",yytext); return TOK_OP_MINUS;}
-"*" {printf("%s\n",yytext); return TOK_OP_MULT;}
-"/" {printf("%s\n",yytext); return TOK_OP_DIV;}
-":" {printf("%s\n",yytext); return TOK_COLON;}
+"+" {printf("+\n"); return TOK_OP_ADD;}
+"-" {printf("-\n"); return TOK_OP_MINUS;}
+"*" {printf("*\n"); return TOK_OP_MULT;}
+"/" {printf("/\n"); return TOK_OP_DIV;}
+":" {printf(":\n"); return TOK_COLON;}
 "(" {printf("(\n"); return TOK_LP;}
 ")" {printf(")\n"); return TOK_RP;}
 ";" {printf(";\n"); return TOK_END_STATEMENT;}
-"," {printf(";\n"); return TOK_COMMA;}
+"," {printf(",\n"); return TOK_COMMA;}
+
 
 {digit}+ {printf("%s\n",yytext); yylval.num = (double)atoi(yytext); return TOK_NUM;}
 {digit}+"."{digit}+ {printf("%s\n",yytext); yylval.num = atof(yytext); return TOK_NUM;}
 {alpha}({alpha}|{digit})* {printf("%s\n",yytext); yylval.str = strdup(yytext);return TOK_ID; }
+\"(\\.|[^"\\])*\"  {printf("%s\n",yytext);yylval.str = strdup(yytext);return TOK_STRLITERAL;}
 
 <<EOF>> {return EOF;}
 

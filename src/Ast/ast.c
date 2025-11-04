@@ -1,5 +1,14 @@
 #include "ast.h"
 #include <stdio.h>
+#include <string.h>
+
+Exp mkStringLiteral(char *stringLiteral) {
+  Exp e = (Exp)malloc(sizeof(struct _exp));
+  e->tag = STRLITERAL;
+  e->str = strdup(stringLiteral);
+  return e;
+}
+
 Exp mkNum(double v) {
   Exp e = (Exp)malloc(sizeof(struct _exp));
   e->tag = NUM;
@@ -20,7 +29,7 @@ Exp mkId(char *id) {
 
   Exp e = (Exp)malloc(sizeof(struct _exp));
   e->tag = ID;
-  e->id = id;
+  e->id = strdup(id);
   return e;
 }
 Stm mkCompound(Stm lStm, Stm rStm) {
@@ -47,28 +56,49 @@ Stm mkIncr(char *id) {
   ptr->ident = id;
   return ptr;
 }
-Func mkFunc(char *id, int returnValue, int numArgs, ...) {
+
+Stm mkFuncCall(char *id, Arg args) {
+
+  Stm ptr = (Stm)malloc(sizeof(struct _stm));
+  ptr->tag = FUNCTION;
+  ptr->function.args = args;
+
+  ptr->function.ident = strdup(id);
+  return ptr;
+}
+Arg mkArg(Exp expr) {
+  Arg ptr = (Arg)malloc(sizeof(struct _args));
+  ptr->arg = expr;
+  ptr->nextArg = NULL;
+  return ptr;
+}
+Arg appendArg(Arg root, Arg newArg) {
+  Arg head = root;
+  while (head->nextArg)
+    head = head->nextArg;
+
+  head->nextArg = newArg;
+
+  if (!root)
+    printf("???\n");
+  else
+    printExp(root->arg);
+  return root;
+}
+
+Func mkFunc(char *id, int returnValue, Stm args) {
 
   Func ptr = (Func)malloc(sizeof(struct _func));
   ptr->ident = id;
   ptr->returnValueTag = returnValue;
-  ptr->numArgs = numArgs;
+  ptr->args = args;
 
-  Arg args = ptr->args;
-
-  va_list list;
-  va_start(list, numArgs);
-  for (int i = 0; i < numArgs; i++) {
-    *args = *va_arg(list, Arg);
-    args = (*args).nextArg;
-  }
-  va_end(list);
   return ptr;
 }
 
 void printStm(Stm ptr) {
 
-  if (ptr == NULL)
+  if (!ptr)
     return;
   switch (ptr->tag) {
   case ASSIGN:
@@ -85,10 +115,25 @@ void printStm(Stm ptr) {
     printStm(ptr->compound.fst);
     printStm(ptr->compound.snd);
     break;
+  case FUNCTION: {
+    printf("%s=", ptr->function.ident);
+
+    printArgs(ptr->function.args);
+  } break;
   }
 }
 
+void printArgs(Arg arg) {
+  if (!arg)
+    return;
+  while (arg) {
+    printExp(arg->arg);
+    arg = arg->nextArg;
+  }
+}
 void printExp(Exp ptr) {
+  if (!ptr)
+    return;
 
   switch (ptr->tag) {
   case NUM:
@@ -103,6 +148,9 @@ void printExp(Exp ptr) {
     printOp(ptr->binop.op);
     printExp(ptr->binop.right);
     printf(")");
+    break;
+  case STRLITERAL:
+    printf("%s", ptr->str);
     break;
   }
 }
