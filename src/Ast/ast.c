@@ -41,12 +41,16 @@ Stm mkCompound(Stm lStm, Stm rStm) {
   return ptr;
 }
 
-Stm mkAssign(char *id, Exp exp) {
+Stm mkAssign(char *id, int type, Exp exp) {
 
   Stm ptr = (Stm)malloc(sizeof(struct _stm));
   ptr->tag = ASSIGN;
   ptr->assign.ident = id;
   ptr->assign.expr = exp;
+  if (type == -1)
+    ptr->assign.type = exp->tag;
+  else
+    ptr->assign.type = type;
   return ptr;
 }
 Stm mkIncr(char *id) {
@@ -103,8 +107,23 @@ void printStm(Stm ptr) {
   switch (ptr->tag) {
   case ASSIGN:
     printf("%s", ptr->assign.ident);
-    printf("=");
-    printExp(ptr->assign.expr);
+    switch (ptr->assign.type) {
+    case ID:
+      printf(":ID");
+      break;
+    case NUM:
+      printf(":Integer");
+      break;
+    case STRLITERAL:
+      printf(":String");
+      break;
+    default:
+      break;
+    }
+    if (ptr->assign.expr) {
+      printf("=");
+      printExp(ptr->assign.expr);
+    }
     printf("; ");
     break;
   case INCR:

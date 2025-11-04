@@ -32,6 +32,7 @@ struct _stm {
     } compound;
     struct { // for ASSIGN
       char *ident;
+      int type;
       struct _exp *expr;
     } assign;
     char *ident; // for INCR
@@ -59,7 +60,7 @@ Exp mkId(char *id);
 Exp mkNum(double v);
 Exp mkBinOp(Exp lExp, binop op, Exp rExp);
 Stm mkCompound(Stm lStm, Stm rStm);
-Stm mkAssign(char *id, Exp exp);
+Stm mkAssign(char *id, int type, Exp exp);
 Stm mkIncr(char *id);
 Stm mkArgList(Arg);
 Stm mkFuncCall(char *id, Arg args);

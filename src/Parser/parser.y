@@ -15,13 +15,15 @@ void yyerror (char const *);
   Arg args;
   double num;
   char* str;
+  int tag;
 
 }
-%type <stm> stmt stmtExpr stmtAssign function varDec variable
-%type <exp> expr term types 
+%type <stm> stmt stmtExpr stmtAssign function  varDec variable loop
+%type <exp> expr term 
 %type <args> args
+%type <tag> varTypes
 // %define api.value.type {double}
-%token <num> TOK_NUM
+%token <num> TOK_NUM 
 %token <str> TOK_ID
 %token <str> TOK_STRLITERAL
 
@@ -88,21 +90,21 @@ top : varDec TOK_BEGIN stmt TOK_END TOK_MAIN TOK_END_STATEMENT  { printf("Printi
 varDec : TOK_PROC TOK_MAIN TOK_IS variable {$$ = $4;}
        ;
 
-variable : TOK_ID TOK_COLON TOK_STRING TOK_ASSIGN TOK_STRLITERAL TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,mkStringLiteral($5)),$7);}
-         | TOK_ID TOK_COLON TOK_STRING  TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,mkStringLiteral("")),$5);}
-         | TOK_ID TOK_COLON TOK_INTEGER TOK_ASSIGN expr TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,$5),$7);}
-         | TOK_ID TOK_COLON TOK_INTEGER  TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,mkNum(0)),$5);}
-         | TOK_ID TOK_COLON TOK_BOOL TOK_ASSIGN expr TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,$5),$7);}
-         | TOK_ID TOK_COLON TOK_BOOL TOK_ASSIGN TOK_TRUE TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,mkNum(1)),$7);}
-         | TOK_ID TOK_COLON TOK_BOOL TOK_ASSIGN TOK_FALSE TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,mkNum(0)),$7);}
-         | TOK_ID TOK_COLON TOK_BOOL  TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,mkNum(0)),$5);}
+
+
+variable : TOK_ID TOK_COLON varTypes TOK_ASSIGN expr TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,$3,$5),$7);}
+         | TOK_ID TOK_COLON varTypes  TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,$3,NULL),$5);}
          | stmtAssign variable {$$ = mkCompound($1,$2);}
          | %empty {$$ = NULL;}
          ;
 
+varTypes : TOK_STRING {$$ = 3;}
+         | TOK_INTEGER {$$ = 1;}
+         | TOK_BOOL {$$ = 1;}
+         ;
 
 stmt : stmtExpr stmt  { $$ = mkCompound($1,$2);}  
-     | %empty {$$ = NULL;}
+     | stmtExpr   { $$ = $1;}  
      ;
 
 stmtExpr : stmtAssign {$$ = $1;}
@@ -110,7 +112,7 @@ stmtExpr : stmtAssign {$$ = $1;}
          // | loop {$$ = $1;}
          ;  
 
-stmtAssign : TOK_ID TOK_ASSIGN expr TOK_END_STATEMENT{$$ = mkAssign($1,$3);}
+stmtAssign : TOK_ID TOK_ASSIGN expr TOK_END_STATEMENT{$$ = mkAssign($1,-1,$3);}
            ;
 
 function : TOK_ID TOK_LP args TOK_RP TOK_END_STATEMENT {$$ = mkFuncCall($1,$3);}
@@ -119,30 +121,28 @@ function : TOK_ID TOK_LP args TOK_RP TOK_END_STATEMENT {$$ = mkFuncCall($1,$3);}
          ;
 
 args : %empty {$$ = NULL;}
-     | types TOK_COMMA args {$$ = appendArg(mkArg($1),$3);}
-     | types {$$ = mkArg($1);}
+     | term TOK_COMMA args {$$ = appendArg(mkArg($1),$3);}
+     | term {$$ = mkArg($1);}
      ;
 
-types : TOK_STRLITERAL {$$ = mkStringLiteral($1);}
-      | TOK_NUM {$$ = mkNum($1);}
-      | TOK_ID {$$ = mkId($1);}
-      | TOK_TRUE {$$ = mkNum(1);}
-      | TOK_FALSE {$$ = mkNum(0);}
-      ;
 
-// loop : %empty {$$ = NULL;}
-     // ;
+
+loop : %empty {$$ = NULL;}
+     ;
 
 expr : term {$$ =$1;}
      | expr TOK_OP_ADD expr {$$ = mkBinOp($1,PLUS,$3);}
      | expr TOK_OP_MINUS expr {$$ = mkBinOp($1,MINUS,$3);}
      | expr TOK_OP_MULT expr {$$ = mkBinOp($1,TIMES,$3);}
      | expr TOK_OP_DIV expr {$$ = mkBinOp($1,DIV,$3);}
-     | TOK_ID {$$ = mkId($1);}
      ;
 
 term : TOK_NUM {$$ = mkNum($1);}
      | TOK_LP expr TOK_RP {$$ = $2;}
+     | TOK_TRUE {$$ = mkNum(1);}
+     | TOK_FALSE {$$ = mkNum(0);}
+     | TOK_ID {$$ = mkId($1);}
+     | TOK_STRLITERAL {$$ = mkStringLiteral($1);}
      ;
 
 
