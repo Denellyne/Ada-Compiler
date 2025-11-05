@@ -3,13 +3,14 @@
 
 #include <stdlib.h>
 typedef enum {
+  POW,
   PLUS,
   MINUS,
   TIMES,
   DIV, // operadores aritméticos
   AND,
   OR,
-  NOT, // operadores booleanos
+  NOT,
   XOR,
   EQ,
   NEQ,
@@ -17,18 +18,22 @@ typedef enum {
   GT,
   LE,
   GE // operadores de comparação
-} binop;
+} op;
 struct _exp {
-  enum { ID, NUM, OP, BOOL, STRLITERAL } tag;
+  enum { ID, NUM, BINOP, BOOL, STRLITERAL, UNARYOP } tag;
   union {
     double val; // for NUM
     char *id;   // for ID
     char *str;  // for STRLITERAL
     int bool_val;
     struct { // for OP
-      binop op;
+      op op;
       struct _exp *left, *right;
     } binop;
+    struct {
+      op op;
+      struct _exp *exp;
+    } unaryop;
   };
 };
 typedef struct _exp *Exp;
@@ -97,7 +102,8 @@ Exp mkStringLiteral(char *stringLiteral);
 Exp mkId(char *id);
 Exp mkBool(int b);
 Exp mkNum(double v);
-Exp mkBinOp(Exp lExp, binop op, Exp rExp);
+Exp mkBinOp(Exp lExp, op op, Exp rExp);
+Exp mkUnaryOp(Exp exp, op op);
 Stm mkCompound(Stm lStm, Stm rStm);
 Stm mkAssign(char *id, int type, Exp exp);
 Stm mkIncr(char *id);
@@ -115,7 +121,7 @@ Func mkFunc(char *id, int returnValue, Stm args);
 void printProg(Prog);
 void printStm(Stm);
 void printExp(Exp);
-void printOp(binop op);
+void printOp(op op);
 void printFunc(Func);
 void printArgs(Arg);
 #endif // !TOKENS

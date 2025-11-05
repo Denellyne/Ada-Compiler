@@ -15,13 +15,21 @@ Exp mkNum(double v) {
   e->val = v;
   return e;
 }
-Exp mkBinOp(Exp lExp, binop op, Exp rExp) {
+Exp mkBinOp(Exp lExp, op op, Exp rExp) {
 
   Exp e = (Exp)malloc(sizeof(struct _exp));
-  e->tag = OP;
+  e->tag = BINOP;
   e->binop.left = lExp;
   e->binop.right = rExp;
   e->binop.op = op;
+  return e;
+}
+
+Exp mkUnaryOp(Exp exp, op op) {
+  Exp e = (Exp)malloc(sizeof(struct _exp));
+  e->tag = UNARYOP;
+  e->unaryop.op = op;
+  e->unaryop.exp = exp;
   return e;
 }
 
@@ -251,12 +259,18 @@ void printExp(Exp ptr) {
   case ID:
     printf("%s", ptr->id);
     break;
-  case OP:
+  case BINOP:
     printf("(");
     printOp(ptr->binop.op);
     printExp(ptr->binop.left);
     printf(" ");
     printExp(ptr->binop.right);
+    printf(")");
+    break;
+  case UNARYOP:
+    printf("(");
+    printOp(ptr->unaryop.op);
+    printExp(ptr->unaryop.exp);
     printf(")");
     break;
   case STRLITERAL:
@@ -271,10 +285,13 @@ void printExp(Exp ptr) {
   }
 }
 
-void printOp(binop op) {
+void printOp(op op) {
   switch (op) {
+  case POW:
+    printf("POW ");
+    break;
   case PLUS:
-    printf("ADD ");
+    printf("PLUS ");
     break;
   case MINUS:
     printf("MINUS ");

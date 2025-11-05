@@ -56,6 +56,7 @@ alpha [_a-zA-Z]
 "+" {printf("+ "); return TOK_OP_ADD;}
 "-" {printf("- "); return TOK_OP_MINUS;}
 "*" {printf("* "); return TOK_OP_MULT;}
+"**" {printf("** "); return TOK_POW;}
 "/" {printf("/ "); return TOK_OP_DIV;}
 ":" {printf(": "); return TOK_COLON;}
 "(" {printf("( "); return TOK_LP;}
