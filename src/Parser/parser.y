@@ -18,7 +18,7 @@ void yyerror (char const *);
   int tag;
 
 }
-%type <stm> stmt stmtExpr stmtAssign function  varDec variable loop
+%type <stm> stmt stmtExpr stmtAssign function  varDec variable loop if ifBody
 %type <exp> expr term 
 %type <args> args
 %type <tag> varTypes
@@ -74,9 +74,12 @@ void yyerror (char const *);
 
 /* Precedences*/
 
+%left TOK_XOR TOK_AND TOK_OR TOK_NOT TOK_NOTEQ TOK_EQ TOK_GREATER TOK_LESS TOK_GREATEREQ TOK_LESSEQ 
 %left TOK_OP_ADD TOK_OP_MINUS '+' '-'
-%left TOK_OP_MULT TOK_OP_DIV '*' '/'
+%left TOK_OP_MULT TOK_OP_DIV 
+%left TOK_LP TOK_RP
 %left TOK_END_STATEMENT
+
 
 /* completar: declarações de tokens */
 
@@ -84,7 +87,7 @@ void yyerror (char const *);
 %%
 
 
-top : varDec TOK_BEGIN stmt TOK_END TOK_MAIN TOK_END_STATEMENT  { printf("Printing AST:\n");printStm(mkCompound($1,$3));printf("\n"); }
+top : varDec TOK_BEGIN stmt TOK_END TOK_MAIN TOK_END_STATEMENT  { printf("\nPrinting AST:\n");printStm(mkCompound($1,$3));printf("\n"); }
     ;
 
 varDec : TOK_PROC TOK_MAIN TOK_IS variable {$$ = $4;}
@@ -98,9 +101,9 @@ variable : TOK_ID TOK_COLON varTypes TOK_ASSIGN expr TOK_END_STATEMENT variable 
          | %empty {$$ = NULL;}
          ;
 
-varTypes : TOK_STRING {$$ = 3;}
+varTypes : TOK_STRING {$$ = 4;}
          | TOK_INTEGER {$$ = 1;}
-         | TOK_BOOL {$$ = 1;}
+         | TOK_BOOL {$$ = 3;}
          ;
 
 stmt : stmtExpr stmt  { $$ = mkCompound($1,$2);}  
@@ -109,7 +112,7 @@ stmt : stmtExpr stmt  { $$ = mkCompound($1,$2);}
 
 stmtExpr : stmtAssign {$$ = $1;}
          | function {$$ = $1;}
-         // | loop {$$ = $1;}
+         | loop {$$ = $1;}
          ;  
 
 stmtAssign : TOK_ID TOK_ASSIGN expr TOK_END_STATEMENT{$$ = mkAssign($1,-1,$3);}
@@ -121,31 +124,46 @@ function : TOK_ID TOK_LP args TOK_RP TOK_END_STATEMENT {$$ = mkFuncCall($1,$3);}
          ;
 
 args : %empty {$$ = NULL;}
-     | term TOK_COMMA args {$$ = appendArg(mkArg($1),$3);}
-     | term {$$ = mkArg($1);}
+     | expr TOK_COMMA args {$$ = appendArg(mkArg($1),$3);}
+     | expr {$$ = mkArg($1);}
      ;
 
-
-
-loop : %empty {$$ = NULL;}
+loop : TOK_WHILE expr TOK_LOOP stmt TOK_END TOK_LOOP TOK_END_STATEMENT { $$ = mkWhile($2,$4);}
+     | if {$$=$1;}
      ;
+
+if : TOK_IF expr TOK_THEN stmt ifBody TOK_ELSE stmt TOK_END TOK_IF TOK_END_STATEMENT{ $$ = mkIf($2,$4,$5,$7);}
+   | TOK_IF expr TOK_THEN stmt ifBody TOK_END TOK_IF TOK_END_STATEMENT{ $$ = mkIf($2,$4,$5,NULL);}
+   ;
+
+ifBody : %empty {$$ = NULL;}
+       | TOK_ELSEIF expr TOK_THEN stmt ifBody {$$ = mkIf($2,$4,$5,NULL);}
+       ;
+
 
 expr : term {$$ =$1;}
      | expr TOK_OP_ADD expr {$$ = mkBinOp($1,PLUS,$3);}
      | expr TOK_OP_MINUS expr {$$ = mkBinOp($1,MINUS,$3);}
      | expr TOK_OP_MULT expr {$$ = mkBinOp($1,TIMES,$3);}
      | expr TOK_OP_DIV expr {$$ = mkBinOp($1,DIV,$3);}
+     | expr TOK_GREATER expr {$$ = mkBinOp($1,GT,$3);}
+     | expr TOK_GREATEREQ expr {$$ = mkBinOp($1,GE,$3);}
+     | expr TOK_LESS expr {$$ = mkBinOp($1,LT,$3);}
+     | expr TOK_LESSEQ expr {$$ = mkBinOp($1,LE,$3);}
+     | expr TOK_XOR expr {$$ = mkBinOp($1,XOR,$3);}
+     | expr TOK_AND expr {$$ = mkBinOp($1,AND,$3);}
+     | expr TOK_OR expr {$$ = mkBinOp($1,OR,$3);}
+     | expr TOK_NOTEQ expr {$$ = mkBinOp($1,NEQ,$3);}
+     | expr TOK_EQ expr {$$ = mkBinOp($1,EQ,$3);}
      ;
 
 term : TOK_NUM {$$ = mkNum($1);}
      | TOK_LP expr TOK_RP {$$ = $2;}
-     | TOK_TRUE {$$ = mkNum(1);}
-     | TOK_FALSE {$$ = mkNum(0);}
+     | TOK_TRUE {$$ = mkBool(1);}
+     | TOK_FALSE {$$ = mkBool(0);}
      | TOK_ID {$$ = mkId($1);}
      | TOK_STRLITERAL {$$ = mkStringLiteral($1);}
      ;
-
-
 
 %%
 

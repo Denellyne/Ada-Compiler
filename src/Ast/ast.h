@@ -1,16 +1,31 @@
 #ifndef AST
 #define AST
 
-#include <stdarg.h>
 #include <stdlib.h>
-typedef enum { PLUS, MINUS, TIMES, DIV } binop;
+typedef enum {
+  PLUS,
+  MINUS,
+  TIMES,
+  DIV, // operadores aritméticos
+  AND,
+  OR,
+  NOT, // operadores booleanos
+  XOR,
+  EQ,
+  NEQ,
+  LT,
+  GT,
+  LE,
+  GE // operadores de comparação
+} binop;
 struct _exp {
-  enum { ID, NUM, OP, STRLITERAL } tag;
+  enum { ID, NUM, OP, BOOL, STRLITERAL } tag;
   union {
     double val; // for NUM
     char *id;   // for ID
     char *str;  // for STRLITERAL
-    struct {    // for OP
+    int bool_val;
+    struct { // for OP
       binop op;
       struct _exp *left, *right;
     } binop;
@@ -25,7 +40,14 @@ struct _args {
 typedef struct _args *Arg;
 
 struct _stm {
-  enum { COMPOUND, ASSIGN, INCR, FUNCTION } tag;
+  enum {
+    COMPOUND,
+    ASSIGN,
+    INCR,
+    FUNCTION,
+    IF,
+    WHILE,
+  } tag;
   union {
     struct { // for COMPOUND
       struct _stm *fst, *snd;
@@ -40,6 +62,16 @@ struct _stm {
       struct _args *args;
       char *ident;
     } function;
+    struct { // for IF
+      Exp cond;
+      struct _stm *thenBranch;
+      struct _stm *elsifBranch;
+      struct _stm *elseBranch;
+    } ifStmt;
+    struct { // for WHILE
+      Exp cond;
+      struct _stm *body;
+    } whileStmt;
   };
 };
 typedef struct _stm *Stm;
@@ -57,6 +89,7 @@ typedef struct _func *Func;
 
 Exp mkStringLiteral(char *stringLiteral);
 Exp mkId(char *id);
+Exp mkBool(int b);
 Exp mkNum(double v);
 Exp mkBinOp(Exp lExp, binop op, Exp rExp);
 Stm mkCompound(Stm lStm, Stm rStm);
@@ -64,6 +97,9 @@ Stm mkAssign(char *id, int type, Exp exp);
 Stm mkIncr(char *id);
 Stm mkArgList(Arg);
 Stm mkFuncCall(char *id, Arg args);
+Stm mkIf(Exp cond, Stm thenBranch, Stm elseifBranch, Stm elseBranch);
+Stm mkWhile(Exp cond, Stm body);
+
 Arg mkArg(Exp expr);
 Arg appendArg(Arg root, Arg newArg);
 

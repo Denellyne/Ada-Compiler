@@ -9,9 +9,8 @@ OBJ = $(sort $(OBJ_TEMP))
 all : build
 
 %.o: %.c 
-	@echo "Compiling..."
-	$(CXX) $(CFLAGS) -c $< -o $@  	
-	@echo "Compiled:" $@
+	@echo "Compiling $@"
+	@$(CXX) $(CFLAGS) -c $< -o $@  	
 
 parser :
 	@bison -Wcounterexamples -d Parser/parser.y
@@ -20,9 +19,10 @@ lex :
 	@flex Lexer/lexer.x
 
 build : parser lex $(OBJ)
-	@echo "Builidng"
+	@echo "Builidng executable"
 	@mkdir -p ../bin
 	$(CXX) -o $(OUTPUT) $(OBJ) -lm
+	@echo "Done"
 
 run : build
 	@echo "Running..."

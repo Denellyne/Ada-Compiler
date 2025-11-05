@@ -20,6 +20,8 @@
 
 int main(int argc, char *argv[]) {
   freopen(argv[1], "r", stdin);
-  yyparse();
-  return EXIT_SUCCESS;
+  int res = yyparse();
+  if (res == 0)
+    return EXIT_SUCCESS;
+  return EXIT_FAILURE;
 }

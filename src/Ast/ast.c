@@ -32,6 +32,13 @@ Exp mkId(char *id) {
   e->id = strdup(id);
   return e;
 }
+
+Exp mkBool(int b) {
+  Exp e = (Exp)malloc(sizeof(struct _exp));
+  e->tag = BOOL;
+  e->bool_val = b;
+  return e;
+}
 Stm mkCompound(Stm lStm, Stm rStm) {
 
   Stm ptr = (Stm)malloc(sizeof(struct _stm));
@@ -70,6 +77,23 @@ Stm mkFuncCall(char *id, Arg args) {
   ptr->function.ident = strdup(id);
   return ptr;
 }
+
+Stm mkIf(Exp cond, Stm thenBranch, Stm elseifBranch, Stm elseBranch) {
+  Stm ptr = (Stm)malloc(sizeof(struct _stm));
+  ptr->tag = IF;
+  ptr->ifStmt.cond = cond;
+  ptr->ifStmt.thenBranch = thenBranch;
+  ptr->ifStmt.elsifBranch = elseifBranch;
+  ptr->ifStmt.elseBranch = elseBranch;
+  return ptr;
+}
+Stm mkWhile(Exp cond, Stm body) {
+  Stm ptr = (Stm)malloc(sizeof(struct _stm));
+  ptr->tag = WHILE;
+  ptr->whileStmt.cond = cond;
+  ptr->whileStmt.body = body;
+  return ptr;
+}
 Arg mkArg(Exp expr) {
   Arg ptr = (Arg)malloc(sizeof(struct _args));
   ptr->arg = expr;
@@ -82,11 +106,6 @@ Arg appendArg(Arg root, Arg newArg) {
     head = head->nextArg;
 
   head->nextArg = newArg;
-
-  if (!root)
-    printf("???\n");
-  else
-    printExp(root->arg);
   return root;
 }
 
@@ -106,39 +125,85 @@ void printStm(Stm ptr) {
     return;
   switch (ptr->tag) {
   case ASSIGN:
+    printf("(");
     printf("%s", ptr->assign.ident);
     switch (ptr->assign.type) {
     case ID:
-      printf(":ID");
+      printf(" ID");
       break;
     case NUM:
-      printf(":Integer");
+      printf(" INTEGER");
       break;
     case STRLITERAL:
-      printf(":String");
+      printf(" STRING");
+      break;
+    case BOOL:
+      printf(" BOOL");
       break;
     default:
       break;
     }
     if (ptr->assign.expr) {
-      printf("=");
+      printf(" (");
       printExp(ptr->assign.expr);
+      printf(")");
     }
-    printf("; ");
+    printf(")");
+
     break;
   case INCR:
     printf("%s++", ptr->ident);
-    printf("; ");
     break;
   case COMPOUND:
     printStm(ptr->compound.fst);
+    printf(" ");
     printStm(ptr->compound.snd);
     break;
   case FUNCTION: {
-    printf("%s=", ptr->function.ident);
-
+    printf("%s", ptr->function.ident);
+    printf("(");
     printArgs(ptr->function.args);
+    printf(")");
   } break;
+  case IF: {
+
+    int hasElse = 0;
+    int hasElsif = 0;
+    printf("IF");
+    printf(" THEN ");
+    if (ptr->ifStmt.elsifBranch) {
+      printf(" ELSIF ");
+      hasElsif = 1;
+    }
+
+    if (ptr->ifStmt.elseBranch) {
+      printf(" ELSE ");
+      hasElse = 1;
+    }
+
+    printExp(ptr->ifStmt.cond);
+    printf(" (");
+    printStm(ptr->ifStmt.thenBranch);
+    printf(")");
+
+    if (hasElsif) {
+      printf(" (");
+      printStm(ptr->ifStmt.elsifBranch);
+      printf(")");
+    }
+    if (hasElse) {
+      printf(" (");
+      printStm(ptr->ifStmt.elseBranch);
+      printf(")");
+    }
+  } break;
+  case WHILE:
+    printf("WHILE");
+    printf(" DO ");
+    printExp(ptr->whileStmt.cond);
+    printf(" ");
+    printStm(ptr->whileStmt.body);
+    break;
   }
 }
 
@@ -148,6 +213,8 @@ void printArgs(Arg arg) {
   while (arg) {
     printExp(arg->arg);
     arg = arg->nextArg;
+    if (arg)
+      printf(" ");
   }
 }
 void printExp(Exp ptr) {
@@ -163,13 +230,20 @@ void printExp(Exp ptr) {
     break;
   case OP:
     printf("(");
-    printExp(ptr->binop.left);
     printOp(ptr->binop.op);
+    printExp(ptr->binop.left);
+    printf(" ");
     printExp(ptr->binop.right);
     printf(")");
     break;
   case STRLITERAL:
     printf("%s", ptr->str);
+    break;
+  case BOOL:
+    if (ptr->bool_val)
+      printf("TRUE");
+    else
+      printf("FALSE");
     break;
   }
 }
@@ -177,16 +251,46 @@ void printExp(Exp ptr) {
 void printOp(binop op) {
   switch (op) {
   case PLUS:
-    printf("+");
+    printf("ADD ");
     break;
   case MINUS:
-    printf("-");
+    printf("MINUS ");
     break;
   case TIMES:
-    printf("*");
+    printf("MULT ");
     break;
   case DIV:
-    printf("/");
+    printf("DIV ");
+    break;
+  case AND:
+    printf("AND ");
+    break;
+  case OR:
+    printf("OR ");
+    break;
+  case NOT:
+    printf("NOT ");
+    break;
+  case EQ:
+    printf("EQUAL ");
+    break;
+  case NEQ:
+    printf("NOT EQUAL ");
+    break;
+  case LT:
+    printf("LESSER ");
+    break;
+  case GT:
+    printf("GREATER ");
+    break;
+  case LE:
+    printf("LESS EQUAL ");
+    break;
+  case GE:
+    printf("GREAT EQUAL ");
+    break;
+  case XOR:
+    printf("XOR ");
     break;
   }
 }

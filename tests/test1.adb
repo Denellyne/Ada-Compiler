@@ -1,7 +1,7 @@
 procedure Main is
-  a : Integer;
-  b : Integer := "aaa";
+  a : Boolean := True;
+  b : Integer := False;
 begin
-  a := True;
-  Put_Line ("aaa");
+  a := (1+2)*3;
+  Put_Line ("aaa",111,x,True);
 end Main;
