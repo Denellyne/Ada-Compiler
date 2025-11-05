@@ -27,6 +27,9 @@ build : parser lex $(OBJ)
 run : build
 	@echo "Running..."
 	$(OUTPUT)
+
+test:
+	@bash ../tests/test.sh
 	
 clean :
 	rm lex.yy.c parser.tab.h parser.tab.c $(OUTPUT) $(OBJ)

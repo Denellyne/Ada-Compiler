@@ -87,7 +87,8 @@ void yyerror (char const *);
 %%
 
 
-top : varDec TOK_BEGIN stmt TOK_END TOK_MAIN TOK_END_STATEMENT  { printf("\nPrinting AST:\n");printStm(mkCompound($1,$3));printf("\n"); }
+
+top : varDec TOK_BEGIN stmt TOK_END TOK_MAIN TOK_END_STATEMENT  { printf("\nPrinting AST:\n");printProg(mkProg($1,$3));printf("\n"); }
     ;
 
 varDec : TOK_PROC TOK_MAIN TOK_IS variable {$$ = $4;}

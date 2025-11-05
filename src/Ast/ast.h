@@ -86,6 +86,12 @@ struct _func {
   Stm stm;
 };
 typedef struct _func *Func;
+struct _prog {
+  char *ident;
+  Stm varDec;
+  Stm statements;
+};
+typedef struct _prog *Prog;
 
 Exp mkStringLiteral(char *stringLiteral);
 Exp mkId(char *id);
@@ -100,11 +106,13 @@ Stm mkFuncCall(char *id, Arg args);
 Stm mkIf(Exp cond, Stm thenBranch, Stm elseifBranch, Stm elseBranch);
 Stm mkWhile(Exp cond, Stm body);
 
+Prog mkProg(Stm varDec, Stm statments);
 Arg mkArg(Exp expr);
 Arg appendArg(Arg root, Arg newArg);
 
 Func mkFunc(char *id, int returnValue, Stm args);
 
+void printProg(Prog);
 void printStm(Stm);
 void printExp(Exp);
 void printOp(binop op);

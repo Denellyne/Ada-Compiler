@@ -39,6 +39,15 @@ Exp mkBool(int b) {
   e->bool_val = b;
   return e;
 }
+
+Prog mkProg(Stm varDec, Stm statments) {
+
+  Prog ptr = (Prog)malloc(sizeof(struct _prog));
+  ptr->varDec = varDec;
+  ptr->statements = statments;
+  ptr->ident = "Prog";
+  return ptr;
+}
 Stm mkCompound(Stm lStm, Stm rStm) {
 
   Stm ptr = (Stm)malloc(sizeof(struct _stm));
@@ -117,6 +126,20 @@ Func mkFunc(char *id, int returnValue, Stm args) {
   ptr->args = args;
 
   return ptr;
+}
+void printProg(Prog ptr) {
+  if (!ptr)
+    return;
+  printf("%s ", ptr->ident);
+  printf("VarDecl ");
+  printf("Statements ");
+  if (!ptr->varDec)
+    printf("None ");
+  else
+    printStm(ptr->varDec);
+  printf("(");
+  printStm(ptr->statements);
+  printf(")");
 }
 
 void printStm(Stm ptr) {
