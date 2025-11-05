@@ -5,10 +5,9 @@ make build
 cd ../tests/
 
 for filename in ./*.adb; do
-  echo $filename
-  if ../bin/ada $filename >/dev/null 2>&1 && echo worked; then
-    echo "$filename success"
+  if ../bin/ada $filename >/dev/null 2>&1; then
+    echo $filename Success
   else
-    echo "$filename failded"
+    echo $filename Failed
   fi
 done
