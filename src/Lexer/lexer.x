@@ -21,8 +21,6 @@ alpha [_a-zA-Z]
 "procedure" {printf("%s ",yytext); return TOK_PROC;}
 "is" {printf("%s ",yytext); return TOK_IS;}
 "Main" {printf("%s ",yytext); return TOK_MAIN;}
-"Put_Line" {printf("%s ",yytext); return TOK_PUTLINE;}
-"Get_Line" {printf("%s ",yytext); return TOK_GETLINE;}
 "loop" {printf("%s ",yytext); return TOK_LOOP;}
 
 "String" {printf("%s ",yytext); return TOK_STRING;}
@@ -67,7 +65,7 @@ alpha [_a-zA-Z]
 
 {digit}+ {printf("%s ",yytext); yylval.num = (double)atoi(yytext); return TOK_NUM;}
 {digit}+"."{digit}+ {printf("%s ",yytext); yylval.num = atof(yytext); return TOK_NUM;}
-{alpha}({alpha}|{digit})* {printf("%s ",yytext); yylval.str = strdup(yytext);return TOK_ID; }
+('_'|{alpha})('_'|{alpha}|{digit})* {printf("%s ",yytext); yylval.str = strdup(yytext);return TOK_ID; }
 \"(\\.|[^"\\])*\"  {printf("%s ",yytext);yylval.str = strdup(yytext);return TOK_STRLITERAL;}
 
 <<EOF>> {return EOF;}

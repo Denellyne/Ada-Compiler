@@ -120,8 +120,6 @@ stmtAssign : TOK_ID TOK_ASSIGN expr TOK_END_STATEMENT{$$ = mkAssign($1,-1,$3);}
            ;
 
 function : TOK_ID TOK_LP args TOK_RP TOK_END_STATEMENT {$$ = mkFuncCall($1,$3);}
-         | TOK_PUTLINE TOK_LP args TOK_RP TOK_END_STATEMENT {$$ = mkFuncCall("Put_Line",$3);}
-         | TOK_GETLINE TOK_LP args TOK_RP TOK_END_STATEMENT {$$ = mkFuncCall("Get_Line",$3);}
          ;
 
 args : %empty {$$ = NULL;}
