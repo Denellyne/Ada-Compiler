@@ -1,6 +1,5 @@
 procedure Main is
-  a : Boolean;
-  b : String := False;
+  a : Boolean := False;
 begin
   a := True;
   Get_Line ("aaa");

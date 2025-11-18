@@ -1,6 +1,5 @@
 procedure Main is
-  a : Boolean;
-  b : String := False;
+  V : Integer := 10;
 begin
   if V > 5 then
     Compute_A (V - 1);

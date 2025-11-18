@@ -14,14 +14,25 @@
 
 */
 
+#include "Ast/ast.h"
+#include "Table/table.h"
 #include "parser.tab.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 int main(int argc, char *argv[]) {
+  Prog prog = NULL;
+  Table tbl = NULL;
+  tbl = addEntry(tbl, "Put_Line", TBL_FUNCTION);
+  tbl = addEntry(tbl, "Get_Line", TBL_FUNCTION);
   freopen(argv[1], "r", stdin);
-  int res = yyparse();
-  if (res == 0)
-    return EXIT_SUCCESS;
-  return EXIT_FAILURE;
+  int res = yyparse(&prog);
+  if (res != 0) {
+    return EXIT_FAILURE;
+  }
+  tbl = addVariableDeclarations(tbl, prog->varDec);
+  printTable(tbl);
+  if (!tbl)
+    return EXIT_FAILURE;
+  return EXIT_SUCCESS;
 }
