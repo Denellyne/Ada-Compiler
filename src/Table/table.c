@@ -93,6 +93,7 @@ Table addVariableDeclarations(Table tbl, Stm varDecl) {
   return addVariableDeclarations(tbl, varDecl->compound.snd);
 }
 void printTable(Table tbl) {
+  printf("\nTable:\n");
   if (!tbl)
     return;
   printf("%s %d\n", tbl->key, tbl->typeTag);

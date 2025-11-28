@@ -1,0 +1,13 @@
+	.data
+score: 	.word 75
+_heap_:	.space 10000
+       	.text
+       	.global main
+       	la $gp, _heap_
+      	jal main
+_stop_:
+       	li $2,10
+       	syscall
+
+main:
+jr $ra

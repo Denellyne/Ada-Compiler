@@ -15,6 +15,8 @@
 */
 
 #include "Ast/ast.h"
+#include "CodeGen/codeGen.h"
+#include "IR/ir.h"
 #include "Table/table.h"
 #include "parser.tab.h"
 #include <stdio.h>
@@ -31,8 +33,15 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   tbl = addVariableDeclarations(tbl, prog->varDec);
-  printTable(tbl);
   if (!tbl)
     return EXIT_FAILURE;
+  printTable(tbl);
+
+  InstrList *instrs = genCode(prog->statements);
+  if (!instrs)
+    return EXIT_FAILURE;
+
+  printInstructions(instrs);
+  codeGen(tbl, prog->varDec, instrs);
   return EXIT_SUCCESS;
 }
