@@ -385,7 +385,6 @@ void transBinOp(Exp exp, char *dest, struct vars *vars) {
     transExp(exp->binop.left, condLeft, vars);
     transExp(exp->binop.right, condRight, vars);
     removeTemp(condLeft);
-    removeTemp(condRight);
     return;
   }
   char *t1 = newTemp();
@@ -394,7 +393,6 @@ void transBinOp(Exp exp, char *dest, struct vars *vars) {
   transExp(exp->binop.left, t1, vars);
   transExp(exp->binop.right, t2, vars);
   removeTemp(t1);
-  removeTemp(t2);
 
   emitOp(exp->binop.op, dest, t1, t2);
 }

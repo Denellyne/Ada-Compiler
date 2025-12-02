@@ -9,6 +9,8 @@ int printDataSection(Table tbl, Stm varDecl, FILE *file);
 int printHeader(FILE *file);
 int printMain(FILE *file, InstrList *instrs);
 int printInstr(FILE *file, InstrList *instrs);
+int printPowFunction(FILE *file);
+int printCallFunction(FILE *file, char *functionName);
 
 void codeGen(Table tbl, Stm varDecl, InstrList *ir) {
   FILE *out = fopen("out.bin", "w");
@@ -24,6 +26,11 @@ void codeGen(Table tbl, Stm varDecl, InstrList *ir) {
   }
   if (!printHeader(out)) {
     fprintf(stderr, "Unable to print header section to file\n");
+    fclose(out);
+    return;
+  }
+  if (!printPowFunction(out)) {
+    fprintf(stderr, "Unable to print pow function to file\n");
     fclose(out);
     return;
   }
@@ -198,4 +205,39 @@ int printInstr(FILE *file, InstrList *instrs) {
   return 1;
 }
 
-int printJump(InstrList *ir, FILE *file) {}
+int printPowFunction(FILE *file) {
+  char *powASMString = "pow:\n\
+addiu $sp, $sp, -8 \n\
+sw $fp, 0($sp)\n\
+sw $ra, 4($sp)\n\
+move $fp, $sp\n\n\
+beq $a0,$zero,pow_0\n\
+beq $a1,1,pow_ret\n\
+move $v0,$a0\n\
+move $t0,$a1\n\n\
+pow_start:\n\
+mul $v0,$v0,$a0\n\
+addiu $t0,$t0,-1\n\
+beq $t0,1,pow_ret\n\
+j pow_start\n\
+pow_0:\n\n\
+li $v0,1\n\
+pow_ret:\n\n\
+move $sp, $fp\n\
+lw $ra, 4($sp)\n\
+lw $fp, 0($sp)\n\
+addiu $sp, $sp, 8\n\
+jr $ra\n";
+
+  if (fprintf(file, "\n%s\n", powASMString) < 0)
+    return 0;
+  return 1;
+}
+int printCallFunction(FILE *file, char *functionName) {
+  if (fprintf(file,
+              "\naddiu $sp, $sp, -4\nsw    $ra, 0($sp)\njal %s\nlw    $ra, "
+              "0($sp)\naddiu $sp, $sp, 4\n",
+              functionName) < 0)
+    return 0;
+  return 1;
+}
