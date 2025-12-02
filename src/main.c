@@ -37,11 +37,16 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   printTable(tbl);
 
-  InstrList *instrs = genCode(prog);
+  stringLiterals *strs = NULL;
+  InstrList *instrs = genCode(prog, &strs);
   if (!instrs)
     return EXIT_FAILURE;
 
   printInstructions(instrs);
-  codeGen(tbl, prog->varDec, instrs);
+  if (!codeGen(tbl, prog->varDec, instrs, strs)) {
+    fprintf(stderr,
+            "Unable to generate the assembly for the source code given\n");
+    return EXIT_FAILURE;
+  }
   return EXIT_SUCCESS;
 }

@@ -1,7 +1,6 @@
 procedure Main is
-  len : Natural := 10;
-  str : String := "";
+  str : String := "test";
 begin
   Put_Line ("aaa");
-  Get_Line (str, len);
+  Put_Line (str);
 end Main;

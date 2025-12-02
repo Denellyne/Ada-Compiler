@@ -5,41 +5,49 @@ int printConditional(InstrList *ir, FILE *file);
 int printAssignment(InstrList *ir, FILE *file);
 int printLoop(InstrList *ir, FILE *file);
 int printJump(InstrList *ir, FILE *file);
-int printDataSection(Table tbl, Stm varDecl, FILE *file);
+int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs);
 int printHeader(FILE *file);
 int printMain(FILE *file, InstrList *instrs);
 int printInstr(FILE *file, InstrList *instrs);
 int printPowFunction(FILE *file);
+int printPutLineFunction(FILE *file);
 int printCallFunction(FILE *file, char *functionName);
+int printStaticString(FILE *file, stringLiterals *strs);
 
-void codeGen(Table tbl, Stm varDecl, InstrList *ir) {
+int codeGen(Table tbl, Stm varDecl, InstrList *ir, stringLiterals *strs) {
   FILE *out = fopen("out.bin", "w");
   if (!out) {
     fprintf(stderr, "File pointer to output binary is null\n");
-    return;
+    return 0;
   }
 
-  if (!printDataSection(tbl, varDecl, out)) {
+  if (!printDataSection(tbl, varDecl, out, strs)) {
     fprintf(stderr, "Unable to print .data section to file\n");
     fclose(out);
-    return;
+    return 0;
   }
   if (!printHeader(out)) {
     fprintf(stderr, "Unable to print header section to file\n");
     fclose(out);
-    return;
+    return 0;
   }
   if (!printPowFunction(out)) {
     fprintf(stderr, "Unable to print pow function to file\n");
     fclose(out);
-    return;
+    return 0;
+  }
+  if (!printPutLineFunction(out)) {
+    fprintf(stderr, "Unable to print pow function to file\n");
+    fclose(out);
+    return 0;
   }
   if (!printMain(out, ir)) {
     fprintf(stderr, "Unable to print main function to file\n");
     fclose(out);
-    return;
+    return 0;
   }
   fclose(out);
+  return 1;
 }
 
 int printTableVariables(Table tbl, Stm varDecl, FILE *file) {
@@ -47,35 +55,6 @@ int printTableVariables(Table tbl, Stm varDecl, FILE *file) {
     return 1;
   switch (varDecl->compound.fst->assign.type) {
 
-  case NUM:
-    if (lookup(tbl, varDecl->compound.fst->assign.ident) == NULL) {
-      fprintf(stderr,
-              "Table doesn't have symbol %s present on variable declaration\n",
-              varDecl->compound.fst->assign.ident);
-      return 0;
-    }
-
-    if (fprintf(file, "%s: \t.word %d\n", varDecl->compound.fst->assign.ident,
-                (int)varDecl->compound.fst->assign.expr->val) < 0)
-      return 0;
-    break;
-  case BOOL:
-    if (lookup(tbl, varDecl->compound.fst->assign.ident) == NULL) {
-      fprintf(stderr,
-              "Table doesn't have symbol %s present on variable declaration\n",
-              varDecl->compound.fst->assign.ident);
-      return 0;
-    }
-    if (varDecl->compound.fst->assign.expr->bool_val == 1) {
-      if (fprintf(file, "%s: \t.byte 1\n",
-                  varDecl->compound.fst->assign.ident) < 0)
-        return 0;
-    } else {
-      if (fprintf(file, "%s: \t.byte 0\n",
-                  varDecl->compound.fst->assign.ident) < 0)
-        return 0;
-    }
-    break;
   case STRLITERAL:
     if (lookup(tbl, varDecl->compound.fst->assign.ident) == NULL) {
       fprintf(stderr,
@@ -87,15 +66,18 @@ int printTableVariables(Table tbl, Stm varDecl, FILE *file) {
                 varDecl->compound.fst->assign.expr->str) < 0)
       return 0;
     break;
-  case ID:
-    break;
   }
 
   return printTableVariables(tbl, varDecl->compound.snd, file);
 }
-int printDataSection(Table tbl, Stm varDecl, FILE *file) {
+int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs) {
   if (fprintf(file, "\t.data\n") < 0)
     return 0;
+
+  if (!printStaticString(file, strs)) {
+    fprintf(stderr, "Unable to print static strings\n");
+    return 0;
+  }
 
   return printTableVariables(tbl, varDecl, file);
 }
@@ -127,12 +109,20 @@ int printInstr(FILE *file, InstrList *instrs) {
   InstrList *current = instrs;
   while (current != NULL) {
     switch (current->instr.opcode) {
+    case LOADADRESS:
+      if (fprintf(file, "la $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2) < 0)
+        return 0;
+      break;
     case MOVE:
       if (fprintf(file, "move $%s, $%s\n", current->instr.arg1,
                   current->instr.arg2) < 0)
         return 0;
       break;
     case CALL:
+
+      if (printCallFunction(file, current->instr.arg1) == 0)
+        return 0;
       break;
     case MOVEI:
       if (fprintf(file, "li $%s, %d\n", current->instr.arg1,
@@ -238,6 +228,34 @@ int printCallFunction(FILE *file, char *functionName) {
               "\naddiu $sp, $sp, -4\nsw    $ra, 0($sp)\njal %s\nlw    $ra, "
               "0($sp)\naddiu $sp, $sp, 4\n",
               functionName) < 0)
+    return 0;
+  return 1;
+}
+int printStaticString(FILE *file, stringLiterals *strs) {
+  if (!strs)
+    return 1;
+  if (fprintf(file, "%s: \t.asciiz %s\n", strs->id, strs->str) < 0)
+    return 0;
+  return printStaticString(file, strs->next);
+}
+int printPutLineFunction(FILE *file) {
+
+  char *putLine = "Put_Line:\n\
+addiu $sp, $sp, -8 \n\
+sw $fp, 0($sp)\n\
+sw $ra, 4($sp)\n\
+move $fp, $sp\n\
+\n\
+li $v0, 4\n\
+syscall\n\
+\n\
+move $sp, $fp\n\
+lw $ra, 4($sp)\n\
+lw $fp, 0($sp)\n\
+addiu $sp, $sp, 8\n\
+jr $ra\n";
+
+  if (fprintf(file, "\n%s\n", putLine) < 0)
     return 0;
   return 1;
 }

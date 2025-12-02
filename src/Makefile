@@ -1,5 +1,5 @@
 CXX = gcc
-CFLAGS = -lm
+CFLAGS = -lm -g
 OUTPUT = ../bin/ada
 INCLUDES := ./lex.yy.c ./parser.tab.c $(shell find . -name '*.c')
 OBJ_TEMP =  $(patsubst %.c,%.o,$(INCLUDES))
@@ -21,7 +21,7 @@ lex :
 build : parser lex $(OBJ)
 	@echo "Builidng executable"
 	@mkdir -p ../bin
-	$(CXX) -o $(OUTPUT) $(OBJ) -lm
+	$(CXX) -g -o $(OUTPUT) $(OBJ) -lm
 	@echo "Done"
 
 run : build

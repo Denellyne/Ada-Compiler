@@ -92,10 +92,16 @@ Table addVariableDeclarations(Table tbl, Stm varDecl) {
   tbl = addEntry(tbl, varDecl->compound.fst->assign.ident, typeTag);
   return addVariableDeclarations(tbl, varDecl->compound.snd);
 }
+void printTableRecur(Table tbl) {
+  if (!tbl)
+    return;
+  printf("%s %d\n", tbl->key, tbl->typeTag);
+  return printTableRecur(tbl->next);
+}
 void printTable(Table tbl) {
   printf("\nTable:\n");
   if (!tbl)
     return;
   printf("%s %d\n", tbl->key, tbl->typeTag);
-  return printTable(tbl->next);
+  return printTableRecur(tbl->next);
 }

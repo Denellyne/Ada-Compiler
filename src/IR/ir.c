@@ -4,16 +4,18 @@
 
 #include "ir.h"
 
-static int temp_count = 0;
-static int label_count = 0;
-static InstrList *code_list = NULL;
-static InstrList *last_instr = NULL;
+static int tempCount = 0;
+static int labelCount = 0;
+static int staticStrCount = 0;
+static InstrList *codeList = NULL;
+static InstrList *lastInstr = NULL;
 static char *condLeft = NULL;
 static char *condRight = NULL;
 
 static char *temps[18] = {"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8",
                           "t9", "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"};
 static int used[18];
+
 char *getVarTemp(char *id, struct vars *vars) {
   if (!vars || id == NULL)
     return NULL;
@@ -25,146 +27,14 @@ char *getVarTemp(char *id, struct vars *vars) {
   }
   return NULL;
 }
-void removeTemp(char *id) {
-  if (!id)
-    return;
-  for (int i = 0; i < 18; i++) {
-    if (strcmp(id, temps[i]) == 0) {
-      used[i] = 0;
-      temp_count--;
-      return;
-    }
-  }
-}
-
-void emitFunction(char *id, char *temp, char *temp2) {
-
-  Instruction instr = {CALL, id, temp, temp2, NULL, 0};
-  InstrList *new_node = malloc(sizeof(InstrList));
-  new_node->instr = instr;
-  new_node->next = NULL;
-
-  if (code_list == NULL) {
-    code_list = new_node;
-    last_instr = new_node;
-  } else {
-    last_instr->next = new_node;
-    last_instr = new_node;
-  }
-}
-void emit2(Opcode opc, char *arg1, char *arg2) {
-  Instruction instr = {opc, arg1, arg2, NULL, NULL, 0};
-  InstrList *new_node = malloc(sizeof(InstrList));
-  new_node->instr = instr;
-  new_node->next = NULL;
-
-  if (code_list == NULL) {
-    code_list = new_node;
-    last_instr = new_node;
-  } else {
-    last_instr->next = new_node;
-    last_instr = new_node;
-  }
-}
-
-void emit3(Opcode opc, char *arg1, char *arg2, char *arg3) {
-  Instruction instr = {opc, arg1, arg2, arg3, NULL, 0};
-  InstrList *new_node = malloc(sizeof(InstrList));
-  new_node->instr = instr;
-  new_node->next = NULL;
-
-  if (code_list == NULL) {
-    code_list = new_node;
-    last_instr = new_node;
-  } else {
-    last_instr->next = new_node;
-    last_instr = new_node;
-  }
-}
-
-void emitMoveI(char *dest, int num) {
-  Instruction instr = {MOVEI, dest, NULL, NULL, NULL, num};
-  InstrList *new_node = malloc(sizeof(InstrList));
-  new_node->instr = instr;
-  new_node->next = NULL;
-
-  if (code_list == NULL) {
-    code_list = new_node;
-    last_instr = new_node;
-  } else {
-    last_instr->next = new_node;
-    last_instr = new_node;
-  }
-}
-
-void emitOp(op ope, char *dest, char *src1, char *src2) {
-  Instruction instr = {OP, dest, src1, src2, NULL, 0, ope};
-  InstrList *new_node = malloc(sizeof(InstrList));
-  new_node->instr = instr;
-  new_node->next = NULL;
-
-  if (code_list == NULL) {
-    code_list = new_node;
-    last_instr = new_node;
-  } else {
-    last_instr->next = new_node;
-    last_instr = new_node;
-  }
-}
-
-void emitLabel(char *label) {
-  Instruction instr = {LABEL, label, NULL, NULL, NULL, 0};
-  InstrList *new_node = malloc(sizeof(InstrList));
-  new_node->instr = instr;
-  new_node->next = NULL;
-
-  if (code_list == NULL) {
-    code_list = new_node;
-    last_instr = new_node;
-  } else {
-    last_instr->next = new_node;
-    last_instr = new_node;
-  }
-}
-
-void emitJump(char *label) {
-  Instruction instr = {JUMP, label, NULL, NULL, NULL, 0};
-  InstrList *new_node = malloc(sizeof(InstrList));
-  new_node->instr = instr;
-  new_node->next = NULL;
-
-  if (code_list == NULL) {
-    code_list = new_node;
-    last_instr = new_node;
-  } else {
-    last_instr->next = new_node;
-    last_instr = new_node;
-  }
-}
-
-void emitCond(op op, char *src1, char *src2, char *label1, char *label2) {
-  Instruction instr = {COND, src1, src2, label1, label2, 0, op};
-  InstrList *new_node = malloc(sizeof(InstrList));
-  new_node->instr = instr;
-  new_node->next = NULL;
-
-  if (code_list == NULL) {
-    code_list = new_node;
-    last_instr = new_node;
-  } else {
-    last_instr->next = new_node;
-    last_instr = new_node;
-  }
-}
 
 char *newTemp() {
   char *temp = NULL;
   for (int i = 0; i < 18; i++) {
     if (used[i] == 0) {
-      printf("%s %i\n", temps[i], used[i]);
       used[i] = 1;
       temp = strdup(temps[i]);
-      temp_count++;
+      tempCount++;
       return temp;
     }
   }
@@ -172,9 +42,197 @@ char *newTemp() {
   return temp;
 }
 
+stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
+  if (!strs) {
+    strs = (stringLiterals *)malloc(sizeof(stringLiterals));
+    strs->next = NULL;
+    strs->id = strdup(id);
+    if (!str)
+      return NULL;
+    else
+      strs->str = strdup(str);
+    return strs;
+  }
+  stringLiterals *head = strs;
+  while (strs->next)
+    strs = strs->next;
+
+  strs->next = (stringLiterals *)malloc(sizeof(stringLiterals));
+  strs->next->next = NULL;
+
+  strs->next->id = strdup(id);
+  if (!str)
+    return NULL;
+  else
+    strs->next->str = strdup(str);
+  return head;
+}
+char *newStaticString() {
+  char *id = malloc(10);
+  sprintf(id, "str%d", staticStrCount++);
+
+  return id;
+}
+
+void removeTemp(char *id) {
+  if (!id)
+    return;
+  for (int i = 0; i < 18; i++) {
+    if (strcmp(id, temps[i]) == 0) {
+      used[i] = 0;
+      tempCount--;
+      return;
+    }
+  }
+}
+
+int emitFunction(char *id, char *temp, char *temp2) {
+
+  Instruction instr = {CALL, id, temp, temp2, NULL, 0};
+  InstrList *newNode = malloc(sizeof(InstrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+int emit2(Opcode opc, char *arg1, char *arg2) {
+  Instruction instr = {opc, arg1, arg2, NULL, NULL, 0};
+  InstrList *newNode = malloc(sizeof(InstrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+
+int emit3(Opcode opc, char *arg1, char *arg2, char *arg3) {
+  Instruction instr = {opc, arg1, arg2, arg3, NULL, 0};
+  InstrList *newNode = malloc(sizeof(InstrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+
+int emitMoveI(char *dest, int num) {
+  Instruction instr = {MOVEI, dest, NULL, NULL, NULL, num};
+  InstrList *newNode = malloc(sizeof(InstrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+
+int emitOp(op ope, char *dest, char *src1, char *src2) {
+  Instruction instr = {OP, dest, src1, src2, NULL, 0, ope};
+  InstrList *newNode = malloc(sizeof(InstrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+
+int emitLabel(char *label) {
+  Instruction instr = {LABEL, label, NULL, NULL, NULL, 0};
+  InstrList *newNode = malloc(sizeof(InstrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+
+int emitJump(char *label) {
+  Instruction instr = {JUMP, label, NULL, NULL, NULL, 0};
+  InstrList *newNode = malloc(sizeof(InstrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+
+int emitCond(op op, char *src1, char *src2, char *label1, char *label2) {
+  Instruction instr = {COND, src1, src2, label1, label2, 0, op};
+  InstrList *newNode = malloc(sizeof(InstrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+
 char *newLabel() {
   char *label = malloc(10);
-  sprintf(label, "L%d", label_count++);
+  sprintf(label, "L%d", labelCount++);
   return label;
 }
 
@@ -203,7 +261,8 @@ struct vars *addNode(char *id, char *temp, struct vars *vars) {
     vars->next->temp = strdup(temp);
   return head;
 }
-struct vars *transVarDecl(Stm varDecl, struct vars *vars) {
+struct vars *transVarDecl(Stm varDecl, struct vars *vars,
+                          stringLiterals **strs) {
   if (!varDecl)
     return vars;
   if (varDecl->compound.fst->tag == NUM) {
@@ -211,15 +270,15 @@ struct vars *transVarDecl(Stm varDecl, struct vars *vars) {
     char *id = strdup(varDecl->compound.fst->assign.ident);
     char *temp = newTemp();
     vars = addNode(id, temp, vars);
-    transExp(varDecl->compound.fst->assign.expr, vars->temp, vars);
+    transExp(varDecl->compound.fst->assign.expr, vars->temp, vars, strs);
   } else if (varDecl->compound.fst->tag == STRLITERAL) {
 
     char *id = strdup(varDecl->compound.fst->assign.ident);
     char *temp = id;
     vars = addNode(id, temp, vars);
-    transExp(varDecl->compound.fst->assign.expr, vars->temp, vars);
+    transExp(varDecl->compound.fst->assign.expr, vars->temp, vars, strs);
   }
-  return transVarDecl(varDecl->compound.snd, vars);
+  return transVarDecl(varDecl->compound.snd, vars, strs);
 }
 void printVars(struct vars *vars) {
   struct vars *head = vars;
@@ -229,32 +288,37 @@ void printVars(struct vars *vars) {
     head = head->next;
   }
 }
-InstrList *genCode(Prog program) {
+InstrList *genCode(Prog program, stringLiterals **strs) {
 
-  temp_count = 0;
-  label_count = 0;
-  code_list = NULL;
-  last_instr = NULL;
+  staticStrCount = 0;
+  tempCount = 0;
+  labelCount = 0;
+  codeList = NULL;
+  lastInstr = NULL;
+  stringLiterals *strsLocal = NULL;
+
   for (int i = 0; i < 18; i++)
     used[i] = 0;
-  struct vars *vars = transVarDecl(program->varDec, NULL);
-  printVars(vars);
 
-  transStm(program->statements, vars);
+  struct vars *vars = transVarDecl(program->varDec, NULL, &strsLocal);
+  // printVars(vars);
 
-  return code_list;
+  transStm(program->statements, vars, &strsLocal);
+  *strs = strsLocal;
+
+  return codeList;
 }
 
-void transStm(Stm stm, struct vars *vars) {
-  if (stm == NULL)
-    return;
+int transStm(Stm stm, struct vars *vars, stringLiterals **strs) {
+  if (!stm)
+    return 0;
 
   switch (stm->tag) {
   case ASSIGN: {
     char *id = getVarTemp(stm->assign.ident, vars);
     if (!id) {
       fprintf(stderr, "Unable to find variable to bind the value\n");
-      return;
+      return 0;
     }
     char *temp = NULL;
     int remove = 0;
@@ -263,23 +327,24 @@ void transStm(Stm stm, struct vars *vars) {
       temp = getVarTemp(stm->assign.expr->id, vars);
       if (!temp) {
         fprintf(stderr, "Unable to find variable to bind the value\n");
-        return;
+        return 0;
       }
     } else {
 
       temp = newTemp();
       remove = 1;
     }
-    transExp(stm->assign.expr, temp, vars);
-    emit2(MOVE, id, temp);
+    int ret =
+        transExp(stm->assign.expr, temp, vars, strs) && emit2(MOVE, id, temp);
     if (remove)
       removeTemp(temp);
+    return ret;
 
     break;
   }
   case COMPOUND:
-    transStm(stm->compound.fst, vars);
-    transStm(stm->compound.snd, vars);
+    return transStm(stm->compound.fst, vars, strs) &&
+           transStm(stm->compound.snd, vars, strs);
     break;
   case IF: {
     char *temp = NULL;
@@ -287,21 +352,22 @@ void transStm(Stm stm, struct vars *vars) {
     char *label_false = newLabel();
     char *label_end = newLabel();
 
-    transExp(stm->ifStmt.cond, temp, vars);
-    emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight, label_true,
-             label_false);
+    int ret = transExp(stm->ifStmt.cond, temp, vars, strs) &&
+              emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight,
+                       label_true, label_false) &&
 
-    emitLabel(label_true);
-    transStm(stm->ifStmt.thenBranch, vars);
-    emitJump(label_end);
+              emitLabel(label_true) &&
+              transStm(stm->ifStmt.thenBranch, vars, strs) &&
+              emitJump(label_end) &&
 
-    emitLabel(label_false);
+              emitLabel(label_false);
     if (stm->ifStmt.elseBranch != NULL) {
-      transStm(stm->ifStmt.elseBranch, vars);
+      ret = ret && transStm(stm->ifStmt.elseBranch, vars, strs);
     }
-    emitJump(label_end);
+    return ret && emitJump(label_end) &&
 
-    emitLabel(label_end);
+           emitLabel(label_end);
+
     break;
   }
   case WHILE: {
@@ -310,24 +376,23 @@ void transStm(Stm stm, struct vars *vars) {
     char *label_body = newLabel();
     char *label_end = newLabel();
 
-    emitLabel(label_start);
-    transExp(stm->whileStmt.cond, temp, vars);
-    emitCond(NEQ, condLeft, condRight, label_body, label_end);
+    return emitLabel(label_start) &&
+           transExp(stm->whileStmt.cond, temp, vars, strs) &&
+           emitCond(NEQ, condLeft, condRight, label_body, label_end) &&
 
-    emitLabel(label_body);
-    transStm(stm->whileStmt.body, vars);
-    emitJump(label_start);
+           emitLabel(label_body) && transStm(stm->whileStmt.body, vars, strs) &&
+           emitJump(label_start) &&
 
-    emitLabel(label_end);
+           emitLabel(label_end);
+
     break;
   }
   case INCR: {
 
     char *temp1 = newTemp();
     char *temp2 = newTemp();
-    emit2(MOVE, temp1, stm->ident);
-    emitMoveI(temp2, 1);
-    emitOp(PLUS, stm->ident, temp1, temp2);
+    return emit2(MOVE, temp1, stm->ident) && emitMoveI(temp2, 1) &&
+           emitOp(PLUS, stm->ident, temp1, temp2);
     break;
   }
 
@@ -335,25 +400,26 @@ void transStm(Stm stm, struct vars *vars) {
 
     char *temp = "a0";
     char *temp2 = NULL;
-    transExp(stm->function.args->arg, temp, vars);
+    int ret = transExp(stm->function.args->arg, temp, vars, strs);
     if (stm->function.args->nextArg) {
       temp2 = "a1";
 
-      transExp(stm->function.args->nextArg->arg, temp2, vars);
+      ret =
+          ret && transExp(stm->function.args->nextArg->arg, temp2, vars, strs);
     }
-    emitFunction(stm->function.ident, temp, temp2);
+    return emitFunction(stm->function.ident, temp, temp2);
   } break;
   }
 }
 
-void transExp(Exp exp, char *dest, struct vars *vars) {
+int transExp(Exp exp, char *dest, struct vars *vars, stringLiterals **strs) {
   if (!exp)
-    return;
+    return 0;
 
   switch (exp->tag) {
 
   case NUM:
-    emitMoveI(dest, (int)exp->val);
+    return emitMoveI(dest, (int)exp->val);
     break;
   case ID: {
     char *id = getVarTemp(exp->id, vars);
@@ -361,40 +427,52 @@ void transExp(Exp exp, char *dest, struct vars *vars) {
       id = exp->id;
     if (strcmp(dest, id) == 0)
       break;
-    emit2(MOVE, dest, id);
+    return emit2(MOVE, dest, id);
     break;
   }
   case BOOL:
-    emitMoveI(dest, exp->bool_val);
+    return emitMoveI(dest, exp->bool_val);
     break;
   case OP:
-    transBinOp(exp, dest, vars);
+    return transBinOp(exp, dest, vars, strs);
     break;
-  case STRLITERAL:
-    emit2(MOVEI, dest, exp->str);
-    break;
+  case STRLITERAL: {
+    char *id = getVarTemp(exp->id, vars);
+    if (!id)
+      id = newStaticString();
+    *strs = addString(id, exp->str, *strs);
+    if (!*strs)
+      return 0;
+    if (!id) {
+      fprintf(stderr, "Unable to create static string for string literal\n");
+      return 0;
+    }
+    return emit2(LOADADRESS, dest, id);
+  } break;
   }
+  return 1;
 }
 
-void transBinOp(Exp exp, char *dest, struct vars *vars) {
+int transBinOp(Exp exp, char *dest, struct vars *vars, stringLiterals **strs) {
   if (dest == NULL) {
 
     condLeft = newTemp();
     condRight = newTemp();
 
-    transExp(exp->binop.left, condLeft, vars);
-    transExp(exp->binop.right, condRight, vars);
+    transExp(exp->binop.left, condLeft, vars, strs);
+    transExp(exp->binop.right, condRight, vars, strs);
     removeTemp(condLeft);
-    return;
+    return 1;
   }
   char *t1 = newTemp();
   char *t2 = newTemp();
 
-  transExp(exp->binop.left, t1, vars);
-  transExp(exp->binop.right, t2, vars);
+  transExp(exp->binop.left, t1, vars, strs);
+  transExp(exp->binop.right, t2, vars, strs);
   removeTemp(t1);
 
   emitOp(exp->binop.op, dest, t1, t2);
+  return 1;
 }
 
 void printInstructions(InstrList *list) {
@@ -402,6 +480,9 @@ void printInstructions(InstrList *list) {
   InstrList *current = list;
   while (current != NULL) {
     switch (current->instr.opcode) {
+    case LOADADRESS:
+      printf("LOADADRESS %s %s\n", current->instr.arg1, current->instr.arg2);
+      break;
     case MOVE:
       printf("MOVE %s %s\n", current->instr.arg1, current->instr.arg2);
       break;
