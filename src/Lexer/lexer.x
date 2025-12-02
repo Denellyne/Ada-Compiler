@@ -66,6 +66,8 @@ alnum ({digit}|{alpha})
 
 {digit}+ {printf("%s ",yytext); yylval.num = (double)atoi(yytext); return TOK_NUM;}
 {digit}+"."{digit}+ {printf("%s ",yytext); yylval.num = atof(yytext); return TOK_NUM;}
+-{digit}+ {printf("%s ",yytext); yylval.num = (double)atoi(yytext); return TOK_NUM;}
+-{digit}+"."{digit}+ {printf("%s ",yytext); yylval.num = atof(yytext); return TOK_NUM;}
 
 [[:alpha:]](_?[a-zA-Z0-9])* {printf("%s ",yytext); yylval.str = strdup(yytext);return TOK_ID; }
 \"(\\.|[^"\\])*\"  {printf("%s ",yytext);yylval.str = strdup(yytext);return TOK_STRLITERAL;}

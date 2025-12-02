@@ -47,6 +47,7 @@ int printTableVariables(Table tbl, Stm varDecl, FILE *file) {
               varDecl->compound.fst->assign.ident);
       return 0;
     }
+
     if (fprintf(file, "%s: \t.word %d\n", varDecl->compound.fst->assign.ident,
                 (int)varDecl->compound.fst->assign.expr->val) < 0)
       return 0;
@@ -59,11 +60,11 @@ int printTableVariables(Table tbl, Stm varDecl, FILE *file) {
       return 0;
     }
     if (varDecl->compound.fst->assign.expr->bool_val == 1) {
-      if (fprintf(file, "%s: \t.word 1\n",
+      if (fprintf(file, "%s: \t.byte 1\n",
                   varDecl->compound.fst->assign.ident) < 0)
         return 0;
     } else {
-      if (fprintf(file, "%s: \t.word 0\n",
+      if (fprintf(file, "%s: \t.byte 0\n",
                   varDecl->compound.fst->assign.ident) < 0)
         return 0;
     }
@@ -114,4 +115,87 @@ int printMain(FILE *file, InstrList *instrs) {
     return 0;
   return 1;
 }
-int printInstr(FILE *file, InstrList *instrs) {}
+int printInstr(FILE *file, InstrList *instrs) {
+
+  InstrList *current = instrs;
+  while (current != NULL) {
+    switch (current->instr.opcode) {
+    case MOVE:
+      if (fprintf(file, "move $%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2) < 0)
+        return 0;
+      break;
+    case CALL:
+      break;
+    case MOVEI:
+      if (fprintf(file, "li $%s, %d\n", current->instr.arg1,
+                  current->instr.num) < 0)
+        return 0;
+      break;
+    case OP: {
+      char *op_str;
+      switch (current->instr.binop) {
+      case PLUS:
+        op_str = "+";
+        break;
+      case MINUS:
+        op_str = "-";
+        break;
+      case TIMES:
+        op_str = "*";
+        break;
+      case DIV:
+        op_str = "/";
+        break;
+      case AND:
+        op_str = "and";
+        break;
+      case OR:
+        op_str = "or";
+        break;
+      case EQ:
+        op_str = "=";
+        break;
+      case NEQ:
+        op_str = "/=";
+        break;
+      case LT:
+        op_str = "<";
+        break;
+      case GT:
+        op_str = ">";
+        break;
+      case LE:
+        op_str = "<=";
+        break;
+      case GE:
+        op_str = ">=";
+        break;
+      default:
+        op_str = "?";
+      }
+      // printf("%s := %s %s %s\n", current->instr.arg1, current->instr.arg2,
+      //        op_str, current->instr.arg3);
+      break;
+    }
+    case LABEL:
+      if (fprintf(file, "%s:\n", current->instr.arg1) < 0)
+        return 0;
+      break;
+    case JUMP:
+      if (fprintf(file, "j %s\n", current->instr.arg1) < 0)
+        return 0;
+      break;
+    case COND: {
+      if (fprintf(file, "bne $%s, $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg4) < 0)
+        return 0;
+      break;
+    }
+    }
+    current = current->next;
+  }
+  return 1;
+}
+
+int printJump(InstrList *ir, FILE *file) {}

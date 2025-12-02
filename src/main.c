@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   printTable(tbl);
 
-  InstrList *instrs = genCode(prog->statements);
+  InstrList *instrs = genCode(prog);
   if (!instrs)
     return EXIT_FAILURE;
 

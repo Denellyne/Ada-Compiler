@@ -3,13 +3,19 @@
 
 #include "../Ast/ast.h"
 
-typedef enum { MOVE, MOVEI, OP, LABEL, JUMP, COND } Opcode;
+typedef enum { MOVE, MOVEI, OP, LABEL, JUMP, COND, CALL } Opcode;
+struct vars {
+  char *id;
+  char *temp;
+  struct vars *next;
+};
 
 typedef struct {
   Opcode opcode;
   char *arg1;
   char *arg2;
   char *arg3;
+  char *arg4;
   int num;
   op binop;
 } Instruction;
@@ -19,7 +25,7 @@ typedef struct InstrList {
   struct InstrList *next;
 } InstrList;
 
-InstrList *genCode(Stm program);
+InstrList *genCode(Prog program);
 void printInstructions(InstrList *list);
 void freeInstructions(InstrList *list);
 
@@ -30,12 +36,13 @@ void emitOp(op op, char *dest, char *src1, char *src2);
 void emitCond(op op, char *src1, char *src2, char *label1, char *label2);
 void emitLabel(char *label);
 void emitJump(char *label);
+void emitFunction(char *id, char *temp, char *temp2);
 
 char *newTemp();
 char *newLabel();
 
-void transStm(Stm stm);
-void transExp(Exp exp, char *dest);
-void transBinOp(Exp exp, char *dest);
+void transStm(Stm stm, struct vars *);
+void transExp(Exp exp, char *dest, struct vars *);
+void transBinOp(Exp exp, char *dest, struct vars *);
 
 #endif
