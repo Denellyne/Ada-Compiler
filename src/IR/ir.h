@@ -3,7 +3,26 @@
 
 #include "../Ast/ast.h"
 
-typedef enum { MOVE, MOVEI, OP, LABEL, JUMP, COND, CALL, LOADADRESS } Opcode;
+typedef enum {
+  MOVE,
+  MOVEI,
+  OP,
+  LABEL,
+  JUMP,
+  COND,
+  CALL,
+  LOADADRESS,
+  ADD,
+  ADDI,
+  SUB,
+  SUBI,
+  MULT,
+  DIVIDE,
+  MULTI,
+  DIVIDEI,
+  POWER,
+  POWERI,
+} Opcode;
 struct vars {
   char *id;
   char *temp;
@@ -38,7 +57,7 @@ void freeInstructions(InstrList *list);
 int emit2(Opcode opc, char *arg1, char *arg2);
 int emit3(Opcode opc, char *arg1, char *arg2, char *arg3);
 int emitMovel(char *dest, int num);
-int emitOp(op op, char *dest, char *src1, char *src2);
+int emitOp(op op, char *dest, char *src1, char *src2, int val);
 int emitCond(op op, char *src1, char *src2, char *label1, char *label2);
 int emitLabel(char *label);
 int emitJump(char *label);

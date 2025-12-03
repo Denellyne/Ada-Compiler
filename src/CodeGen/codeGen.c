@@ -78,8 +78,7 @@ int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs) {
     fprintf(stderr, "Unable to print static strings\n");
     return 0;
   }
-
-  return printTableVariables(tbl, varDecl, file);
+  return 1;
 }
 int printHeader(FILE *file) {
   char *header = "_heap_:\t.space 10000\n       \t.text\n       \t.global "
@@ -109,6 +108,61 @@ int printInstr(FILE *file, InstrList *instrs) {
   InstrList *current = instrs;
   while (current != NULL) {
     switch (current->instr.opcode) {
+    case POWER:
+      if (fprintf(file, "move $a0,$%s\n", current->instr.arg2) < 0)
+        return 0;
+      if (fprintf(file, "move $a1,$%s\n", current->instr.arg3) < 0)
+        return 0;
+      printCallFunction(file, "pow");
+      if (fprintf(file, "move $%s,$v0\n", current->instr.arg1) < 0)
+        return 0;
+      break;
+    case POWERI:
+      if (fprintf(file, "move $a0,$%s\n", current->instr.arg2) < 0)
+        return 0;
+      if (fprintf(file, "li $a1,%d\n", current->instr.num) < 0)
+        return 0;
+      printCallFunction(file, "pow");
+      if (fprintf(file, "move $%s,$v0\n", current->instr.arg1) < 0)
+        return 0;
+      break;
+    case SUB:
+      if (fprintf(file, "subu $%s,$%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
+        return 0;
+      break;
+    case SUBI:
+      if (fprintf(file, "addiu $%s,$%s, -%d\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.num) < 0)
+        return 0;
+      break;
+    case MULTI:
+      if (fprintf(file, "mul $%s, $%s, %d\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.num) < 0)
+        return 0;
+      break;
+    case DIVIDEI:
+      break;
+    case MULT:
+      if (fprintf(file, "mul $%s, $%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
+        return 0;
+      break;
+    case DIVIDE:
+      if (fprintf(file, "div $%s,$%s, $%s\n", current->instr.arg1,
+                  current->instr.arg1, current->instr.arg3) < 0)
+        return 0;
+      break;
+    case ADD:
+      if (fprintf(file, "addu $%s,$%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
+        return 0;
+      break;
+    case ADDI:
+      if (fprintf(file, "addiu $%s,$%s, %d\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.num) < 0)
+        return 0;
+      break;
     case LOADADRESS:
       if (fprintf(file, "la $%s, %s\n", current->instr.arg1,
                   current->instr.arg2) < 0)
@@ -132,18 +186,6 @@ int printInstr(FILE *file, InstrList *instrs) {
     case OP: {
       char *op_str;
       switch (current->instr.binop) {
-      case PLUS:
-        op_str = "+";
-        break;
-      case MINUS:
-        op_str = "-";
-        break;
-      case TIMES:
-        op_str = "*";
-        break;
-      case DIV:
-        op_str = "/";
-        break;
       case AND:
         op_str = "and";
         break;
@@ -201,7 +243,7 @@ addiu $sp, $sp, -8 \n\
 sw $fp, 0($sp)\n\
 sw $ra, 4($sp)\n\
 move $fp, $sp\n\n\
-beq $a0,$zero,pow_0\n\
+beq $a1,$zero,pow_0\n\
 beq $a1,1,pow_ret\n\
 move $v0,$a0\n\
 move $t0,$a1\n\n\

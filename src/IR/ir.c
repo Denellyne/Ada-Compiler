@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,9 +18,9 @@ static char *temps[18] = {"t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8",
 static int used[18];
 
 char *getVarTemp(char *id, struct vars *vars) {
-  if (!vars || id == NULL)
+  if (!vars || !id)
     return NULL;
-  while (vars != NULL) {
+  while (vars) {
     if (strcmp(id, vars->id) == 0)
       return vars->temp;
 
@@ -29,17 +30,25 @@ char *getVarTemp(char *id, struct vars *vars) {
 }
 
 char *newTemp() {
-  char *temp = NULL;
   for (int i = 0; i < 18; i++) {
     if (used[i] == 0) {
       used[i] = 1;
-      temp = strdup(temps[i]);
       tempCount++;
-      return temp;
+      assert(tempCount < 18);
+      return strdup(temps[i]);
     }
   }
 
-  return temp;
+  return NULL;
+}
+int searchStrLiteralById(char *id, stringLiterals *strs) {
+  stringLiterals *head = strs;
+  while (head) {
+    if (!strcmp(id, head->id))
+      return 1;
+    head = head->next;
+  }
+  return 0;
 }
 
 stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
@@ -74,13 +83,14 @@ char *newStaticString() {
   return id;
 }
 
-void removeTemp(char *id) {
-  if (!id)
+void removeTemp(char *temp) {
+  if (!temp)
     return;
   for (int i = 0; i < 18; i++) {
-    if (strcmp(id, temps[i]) == 0) {
+    if (strcmp(temp, temps[i]) == 0) {
       used[i] = 0;
       tempCount--;
+      assert(tempCount >= 0);
       return;
     }
   }
@@ -158,8 +168,52 @@ int emitMoveI(char *dest, int num) {
   return 1;
 }
 
-int emitOp(op ope, char *dest, char *src1, char *src2) {
-  Instruction instr = {OP, dest, src1, src2, NULL, 0, ope};
+int convertOp(const op ope, const int immediate) {
+  switch (ope) {
+  case POW:
+    if (immediate)
+      return POWERI;
+    return POWER;
+
+  case PLUS:
+    if (immediate)
+      return ADDI;
+    return ADD;
+  case MINUS:
+    if (immediate)
+      return SUBI;
+    return SUB;
+  case TIMES:
+    if (immediate)
+      return MULTI;
+    return MULT;
+  case DIV:
+    if (immediate)
+      return DIVIDEI;
+    return DIVIDE;
+  case AND:
+  case OR:
+  case NOT:
+  case XOR:
+  case EQ:
+  case NEQ:
+  case LT:
+  case GT:
+  case LE:
+  case GE:
+    return ope;
+    break;
+  }
+
+  return -1;
+}
+int emitOp(op ope, char *dest, char *src1, char *src2, int val) {
+  int opConverted = convertOp(ope, src2 == NULL);
+  if (opConverted == -1) {
+    fprintf(stderr, "Unable to convert operand\n");
+    return 0;
+  }
+  Instruction instr = {opConverted, dest, src1, src2, NULL, val, 0};
   InstrList *newNode = malloc(sizeof(InstrList));
   if (!newNode)
     return 0;
@@ -242,7 +296,8 @@ struct vars *addNode(char *id, char *temp, struct vars *vars) {
     vars->next = NULL;
     vars->id = strdup(id);
     if (!temp)
-      vars->temp = newTemp();
+      return NULL;
+
     else
       vars->temp = strdup(temp);
     return vars;
@@ -256,29 +311,55 @@ struct vars *addNode(char *id, char *temp, struct vars *vars) {
 
   vars->next->id = strdup(id);
   if (!temp)
-    vars->next->temp = newTemp();
+    return NULL;
   else
     vars->next->temp = strdup(temp);
   return head;
 }
-struct vars *transVarDecl(Stm varDecl, struct vars *vars,
-                          stringLiterals **strs) {
+struct vars *transVarDecl(Stm varDecl, struct vars *vars, stringLiterals **strs,
+                          int *error) {
+  if (*error)
+    return NULL;
   if (!varDecl)
     return vars;
-  if (varDecl->compound.fst->tag == NUM) {
+  if (varDecl->compound.fst->assign.type == NUM) {
 
     char *id = strdup(varDecl->compound.fst->assign.ident);
     char *temp = newTemp();
     vars = addNode(id, temp, vars);
-    transExp(varDecl->compound.fst->assign.expr, vars->temp, vars, strs);
-  } else if (varDecl->compound.fst->tag == STRLITERAL) {
+    if (!vars) {
+      fprintf(stderr, "Error while addind node to vars struct\n");
+      *error = 1;
+      return NULL;
+    }
+    transExp(varDecl->compound.fst->assign.expr, temp, vars, strs);
+  }
+  if (varDecl->compound.fst->assign.type == BOOL) {
+
+    char *id = strdup(varDecl->compound.fst->assign.ident);
+    char *temp = newTemp();
+    vars = addNode(id, temp, vars);
+    if (!vars) {
+      fprintf(stderr, "Error while addind node to vars struct\n");
+      *error = 1;
+      return NULL;
+    }
+    transExp(varDecl->compound.fst->assign.expr, temp, vars, strs);
+  }
+  if (varDecl->compound.fst->assign.type == STRLITERAL) {
 
     char *id = strdup(varDecl->compound.fst->assign.ident);
     char *temp = id;
     vars = addNode(id, temp, vars);
-    transExp(varDecl->compound.fst->assign.expr, vars->temp, vars, strs);
+    if (!vars) {
+      fprintf(stderr, "Error while addind node to vars struct\n");
+      *error = 1;
+      return NULL;
+    }
+    *strs = addString(id, varDecl->compound.fst->assign.expr->str, *strs);
+    // transExp(varDecl->compound.fst->assign.expr, vars->temp, vars, strs);
   }
-  return transVarDecl(varDecl->compound.snd, vars, strs);
+  return transVarDecl(varDecl->compound.snd, vars, strs, error);
 }
 void printVars(struct vars *vars) {
   struct vars *head = vars;
@@ -295,12 +376,15 @@ InstrList *genCode(Prog program, stringLiterals **strs) {
   labelCount = 0;
   codeList = NULL;
   lastInstr = NULL;
+  int error = 0;
   stringLiterals *strsLocal = NULL;
 
   for (int i = 0; i < 18; i++)
     used[i] = 0;
 
-  struct vars *vars = transVarDecl(program->varDec, NULL, &strsLocal);
+  struct vars *vars = transVarDecl(program->varDec, NULL, &strsLocal, &error);
+  if (error)
+    return NULL;
   // printVars(vars);
 
   transStm(program->statements, vars, &strsLocal);
@@ -351,6 +435,7 @@ int transStm(Stm stm, struct vars *vars, stringLiterals **strs) {
     char *label_true = newLabel();
     char *label_false = newLabel();
     char *label_end = newLabel();
+    printf("a\n");
 
     int ret = transExp(stm->ifStmt.cond, temp, vars, strs) &&
               emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight,
@@ -378,7 +463,8 @@ int transStm(Stm stm, struct vars *vars, stringLiterals **strs) {
 
     return emitLabel(label_start) &&
            transExp(stm->whileStmt.cond, temp, vars, strs) &&
-           emitCond(NEQ, condLeft, condRight, label_body, label_end) &&
+           emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight, label_body,
+                    label_end) &&
 
            emitLabel(label_body) && transStm(stm->whileStmt.body, vars, strs) &&
            emitJump(label_start) &&
@@ -392,7 +478,7 @@ int transStm(Stm stm, struct vars *vars, stringLiterals **strs) {
     char *temp1 = newTemp();
     char *temp2 = newTemp();
     return emit2(MOVE, temp1, stm->ident) && emitMoveI(temp2, 1) &&
-           emitOp(PLUS, stm->ident, temp1, temp2);
+           emitOp(PLUS, stm->ident, temp1, temp2, 0);
     break;
   }
 
@@ -415,6 +501,8 @@ int transStm(Stm stm, struct vars *vars, stringLiterals **strs) {
 int transExp(Exp exp, char *dest, struct vars *vars, stringLiterals **strs) {
   if (!exp)
     return 0;
+  else if (!dest && exp->tag == NUM)
+    return -1;
 
   switch (exp->tag) {
 
@@ -422,9 +510,13 @@ int transExp(Exp exp, char *dest, struct vars *vars, stringLiterals **strs) {
     return emitMoveI(dest, (int)exp->val);
     break;
   case ID: {
+    if (searchStrLiteralById(exp->id, *strs))
+      return emit2(LOADADRESS, dest, exp->id);
     char *id = getVarTemp(exp->id, vars);
-    if (id == NULL)
+    if (id == NULL) {
+
       id = exp->id;
+    }
     if (strcmp(dest, id) == 0)
       break;
     return emit2(MOVE, dest, id);
@@ -438,11 +530,12 @@ int transExp(Exp exp, char *dest, struct vars *vars, stringLiterals **strs) {
     break;
   case STRLITERAL: {
     char *id = getVarTemp(exp->id, vars);
-    if (!id)
+    if (!id) {
       id = newStaticString();
-    *strs = addString(id, exp->str, *strs);
-    if (!*strs)
-      return 0;
+      *strs = addString(id, exp->str, *strs);
+      if (!*strs)
+        return 0;
+    }
     if (!id) {
       fprintf(stderr, "Unable to create static string for string literal\n");
       return 0;
@@ -462,17 +555,23 @@ int transBinOp(Exp exp, char *dest, struct vars *vars, stringLiterals **strs) {
     transExp(exp->binop.left, condLeft, vars, strs);
     transExp(exp->binop.right, condRight, vars, strs);
     removeTemp(condLeft);
+    removeTemp(condRight);
     return 1;
   }
   char *t1 = newTemp();
-  char *t2 = newTemp();
 
   transExp(exp->binop.left, t1, vars, strs);
+  int i = transExp(exp->binop.right, NULL, vars, strs);
+  if (i == -1) {
+    removeTemp(t1);
+    return emitOp(exp->binop.op, dest, t1, NULL, (int)exp->binop.right->val);
+  }
+  char *t2 = newTemp();
   transExp(exp->binop.right, t2, vars, strs);
   removeTemp(t1);
+  removeTemp(t2);
 
-  emitOp(exp->binop.op, dest, t1, t2);
-  return 1;
+  return emitOp(exp->binop.op, dest, t1, t2, 0);
 }
 
 void printInstructions(InstrList *list) {
@@ -480,6 +579,38 @@ void printInstructions(InstrList *list) {
   InstrList *current = list;
   while (current != NULL) {
     switch (current->instr.opcode) {
+    case SUB:
+      printf("SUB %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
+    case SUBI:
+      printf("ADDI %s %s -%d\n", current->instr.arg1, current->instr.arg2,
+             current->instr.num);
+      break;
+    case MULTI:
+      printf("MULTI %s %s %d\n", current->instr.arg1, current->instr.arg2,
+             current->instr.num);
+      break;
+    case MULT:
+      printf("MULT %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
+    case DIVIDEI:
+      printf("DIVIDEI %s %s %d\n", current->instr.arg1, current->instr.arg2,
+             current->instr.num);
+      break;
+    case DIVIDE:
+      printf("DIVIDE %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
+    case ADD:
+      printf("ADD %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
+    case ADDI:
+      printf("ADDI %s %s %d\n", current->instr.arg1, current->instr.arg2,
+             current->instr.num);
+      break;
     case LOADADRESS:
       printf("LOADADRESS %s %s\n", current->instr.arg1, current->instr.arg2);
       break;
@@ -497,59 +628,79 @@ void printInstructions(InstrList *list) {
     case MOVEI:
       printf("MOVEI %s %d\n", current->instr.arg1, current->instr.num);
       break;
-    case OP: {
-      char *op_str;
+    case POWER:
+      printf("POW %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
+    case POWERI:
+      printf("POW %s %s %d\n", current->instr.arg1, current->instr.arg2,
+             current->instr.num);
+      break;
+      char *opStr;
       switch (current->instr.binop) {
       case XOR:
-        op_str = "^";
+        asprintf(&opStr, "XOR %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case NOT:
-        op_str = "!";
+        asprintf(&opStr, "NOT %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case POW:
-        op_str = "POW";
+        asprintf(&opStr, "POW %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case PLUS:
-        op_str = "+";
+        asprintf(&opStr, "PLUS %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case MINUS:
-        op_str = "-";
+        asprintf(&opStr, "MINUS %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case TIMES:
-        op_str = "*";
+        asprintf(&opStr, "TIMES %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case DIV:
-        op_str = "/";
+        asprintf(&opStr, "DIV %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case AND:
-        op_str = "and";
+        asprintf(&opStr, "AND %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case OR:
-        op_str = "or";
+        asprintf(&opStr, "OR %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case EQ:
-        op_str = "=";
+        asprintf(&opStr, "EQ %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case NEQ:
-        op_str = "/=";
+        asprintf(&opStr, "NEQ %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case LT:
-        op_str = "<";
+        asprintf(&opStr, "LT %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case GT:
-        op_str = ">";
+        asprintf(&opStr, "GT %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case LE:
-        op_str = "<=";
+        asprintf(&opStr, "LE %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
         break;
       case GE:
-        op_str = ">=";
+        asprintf(&opStr, "GE %s %s %s\n", current->instr.arg1,
+                 current->instr.arg2, current->instr.arg3);
+        break;
+        printf("%s", opStr);
         break;
       }
-      printf("%s := %s %s %s\n", current->instr.arg1, current->instr.arg2,
-             op_str, current->instr.arg3);
-      break;
-    }
     case LABEL:
       printf("%s:\n", current->instr.arg1);
       break;
@@ -557,30 +708,30 @@ void printInstructions(InstrList *list) {
       printf("JUMP %s\n", current->instr.arg1);
       break;
     case COND: {
-      char *op_str;
+      char *opStr;
       switch (current->instr.binop) {
       case EQ:
-        op_str = "=";
+        opStr = "=";
         break;
       case NEQ:
-        op_str = "/=";
+        opStr = "/=";
         break;
       case LT:
-        op_str = "<";
+        opStr = "<";
         break;
       case GT:
-        op_str = ">";
+        opStr = ">";
         break;
       case LE:
-        op_str = "<=";
+        opStr = "<=";
         break;
       case GE:
-        op_str = ">=";
+        opStr = ">=";
         break;
       default:
-        op_str = "?";
+        opStr = "?";
       }
-      printf("COND %s %s %s %s %s\n", current->instr.arg1, op_str,
+      printf("COND %s %s %s %s %s\n", current->instr.arg1, opStr,
              current->instr.arg2, current->instr.arg3, current->instr.arg4);
       break;
     }

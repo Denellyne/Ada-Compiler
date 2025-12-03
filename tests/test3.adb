@@ -1,7 +1,8 @@
 procedure Main is
   x : Integer := 5;
   y : Integer := 3;
-  z : String := "aaa";
+  z : String := "\tFabio é sigma\n";
 begin
-  x := 3 + 7 * 9 + (y**3);
+  x := x + 3**2;
+  Put_Line (z);
 end Main;
