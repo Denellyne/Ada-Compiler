@@ -59,11 +59,12 @@ Entry *lookup(Table tbl, char *name) {
 
 /* Add an entry to the begining of a table
  */
-Table addEntry(Table tbl, char *name, int type) {
+Table addEntry(Table tbl, char *name, int type, unsigned numArgs) {
   Entry *ptr = malloc(sizeof(Entry));
   ptr->key = name;
   ptr->typeTag = type;
   ptr->next = tbl;
+  ptr->numArgs = numArgs;
   return ptr;
 }
 Table addVariableDeclarations(Table tbl, Stm varDecl) {
@@ -89,7 +90,7 @@ Table addVariableDeclarations(Table tbl, Stm varDecl) {
     return NULL;
   }
 
-  tbl = addEntry(tbl, varDecl->compound.fst->assign.ident, typeTag);
+  tbl = addEntry(tbl, varDecl->compound.fst->assign.ident, typeTag, 0);
   return addVariableDeclarations(tbl, varDecl->compound.snd);
 }
 void printTableRecur(Table tbl) {

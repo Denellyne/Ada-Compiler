@@ -3,6 +3,6 @@
 #include "../IR/ir.h"
 #include "../Table/table.h"
 
-int codeGen(Table tbl, Stm varDecl, InstrList *ir, stringLiterals *strs);
+int generateASM(Table tbl, Stm varDecl, instrList *ir, stringLiterals *strs);
 
 #endif

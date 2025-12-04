@@ -1,7 +1,6 @@
 #ifndef AST
 #define AST
 
-#include <stdlib.h>
 typedef enum {
   POW,
   PLUS,

@@ -2,6 +2,7 @@
 #define IR
 
 #include "../Ast/ast.h"
+#include "../Table/table.h"
 
 typedef enum {
   MOVE,
@@ -23,11 +24,12 @@ typedef enum {
   POWER,
   POWERI,
 } Opcode;
-struct vars {
+struct _variables {
   char *id;
   char *temp;
-  struct vars *next;
+  struct _variables *next;
 };
+typedef struct _variables vars;
 struct _stringLiterals {
   char *id;
   char *str;
@@ -35,7 +37,7 @@ struct _stringLiterals {
 };
 typedef struct _stringLiterals stringLiterals;
 
-typedef struct {
+struct _instruction {
   Opcode opcode;
   char *arg1;
   char *arg2;
@@ -43,31 +45,18 @@ typedef struct {
   char *arg4;
   int num;
   op binop;
-} Instruction;
+};
+typedef struct _instruction instruction;
 
-typedef struct InstrList {
-  Instruction instr;
-  struct InstrList *next;
-} InstrList;
+struct _instrList {
+  instruction instr;
+  struct _instrList *next;
+};
+typedef struct _instrList instrList;
 
-InstrList *genCode(Prog program, stringLiterals **strs);
-void printInstructions(InstrList *list);
-void freeInstructions(InstrList *list);
-
-int emit2(Opcode opc, char *arg1, char *arg2);
-int emit3(Opcode opc, char *arg1, char *arg2, char *arg3);
-int emitMovel(char *dest, int num);
-int emitOp(op op, char *dest, char *src1, char *src2, int val);
-int emitCond(op op, char *src1, char *src2, char *label1, char *label2);
-int emitLabel(char *label);
-int emitJump(char *label);
-int emitFunction(char *id, char *temp, char *temp2);
-
-char *newTemp();
-char *newLabel();
-
-int transStm(Stm stm, struct vars *, stringLiterals **strs);
-int transExp(Exp exp, char *dest, struct vars *, stringLiterals **strs);
-int transBinOp(Exp exp, char *dest, struct vars *, stringLiterals **strs);
+instrList *generateIR(Prog program, stringLiterals **strs, Table tbl);
+void printInstructions(instrList *list);
+void freeInstructions(instrList **list);
+void freeStrings(stringLiterals **strs);
 
 #endif

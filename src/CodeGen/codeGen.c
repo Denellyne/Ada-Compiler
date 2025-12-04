@@ -1,20 +1,21 @@
 #include "codeGen.h"
 #include <stdio.h>
 
-int printConditional(InstrList *ir, FILE *file);
-int printAssignment(InstrList *ir, FILE *file);
-int printLoop(InstrList *ir, FILE *file);
-int printJump(InstrList *ir, FILE *file);
+int printConditional(instrList *ir, FILE *file);
+int printAssignment(instrList *ir, FILE *file);
+int printLoop(instrList *ir, FILE *file);
+int printJump(instrList *ir, FILE *file);
 int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs);
 int printHeader(FILE *file);
-int printMain(FILE *file, InstrList *instrs);
-int printInstr(FILE *file, InstrList *instrs);
+int printMain(FILE *file, instrList *instrs);
+int printInstr(FILE *file, instrList *instrs);
 int printPowFunction(FILE *file);
 int printPutLineFunction(FILE *file);
+int printPutNumFunction(FILE *file);
 int printCallFunction(FILE *file, char *functionName);
 int printStaticString(FILE *file, stringLiterals *strs);
 
-int codeGen(Table tbl, Stm varDecl, InstrList *ir, stringLiterals *strs) {
+int generateASM(Table tbl, Stm varDecl, instrList *ir, stringLiterals *strs) {
   FILE *out = fopen("out.bin", "w");
   if (!out) {
     fprintf(stderr, "File pointer to output binary is null\n");
@@ -37,6 +38,11 @@ int codeGen(Table tbl, Stm varDecl, InstrList *ir, stringLiterals *strs) {
     return 0;
   }
   if (!printPutLineFunction(out)) {
+    fprintf(stderr, "Unable to print pow function to file\n");
+    fclose(out);
+    return 0;
+  }
+  if (!printPutNumFunction(out)) {
     fprintf(stderr, "Unable to print pow function to file\n");
     fclose(out);
     return 0;
@@ -81,15 +87,15 @@ int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs) {
   return 1;
 }
 int printHeader(FILE *file) {
-  char *header = "_heap_:\t.space 10000\n       \t.text\n       \t.global "
-                 "main\n       \tla $gp, _heap_\n      \tjal main\n_stop_:\n   "
+  char *header = "_heap_:\t.space 10000\n       \t.text\n       "
+                 "       \tla $gp, _heap_\n      \tjal main\n_stop_:\n   "
                  "    \tli $2,10\n       \tsyscall\n";
 
   if (fprintf(file, "%s\n", header) < 0)
     return 0;
   return 1;
 }
-int printMain(FILE *file, InstrList *instrs) {
+int printMain(FILE *file, instrList *instrs) {
 
   if (fprintf(file, "main:\n") < 0)
     return 0;
@@ -103,9 +109,9 @@ int printMain(FILE *file, InstrList *instrs) {
     return 0;
   return 1;
 }
-int printInstr(FILE *file, InstrList *instrs) {
+int printInstr(FILE *file, instrList *instrs) {
 
-  InstrList *current = instrs;
+  instrList *current = instrs;
   while (current != NULL) {
     switch (current->instr.opcode) {
     case POWER:
@@ -226,6 +232,19 @@ int printInstr(FILE *file, InstrList *instrs) {
         return 0;
       break;
     case COND: {
+      switch (current->instr.binop) {
+
+      case AND:
+      case OR:
+      case NOT:
+      case EQ:
+      case NEQ:
+      case LT:
+      case GT:
+      case LE:
+      case GE:
+        break;
+      }
       if (fprintf(file, "bne $%s, $%s, %s\n", current->instr.arg1,
                   current->instr.arg2, current->instr.arg4) < 0)
         return 0;
@@ -289,6 +308,28 @@ sw $ra, 4($sp)\n\
 move $fp, $sp\n\
 \n\
 li $v0, 4\n\
+syscall\n\
+\n\
+move $sp, $fp\n\
+lw $ra, 4($sp)\n\
+lw $fp, 0($sp)\n\
+addiu $sp, $sp, 8\n\
+jr $ra\n";
+
+  if (fprintf(file, "\n%s\n", putLine) < 0)
+    return 0;
+  return 1;
+}
+
+int printPutNumFunction(FILE *file) {
+
+  char *putLine = "Put_Num:\n\
+addiu $sp, $sp, -8 \n\
+sw $fp, 0($sp)\n\
+sw $ra, 4($sp)\n\
+move $fp, $sp\n\
+\n\
+li $v0, 1\n\
 syscall\n\
 \n\
 move $sp, $fp\n\

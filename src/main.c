@@ -25,8 +25,9 @@
 int main(int argc, char *argv[]) {
   Prog prog = NULL;
   Table tbl = NULL;
-  tbl = addEntry(tbl, "Put_Line", TBL_FUNCTION);
-  tbl = addEntry(tbl, "Get_Line", TBL_FUNCTION);
+  tbl = addEntry(tbl, "Put_Line", TBL_FUNCTION, 1);
+  tbl = addEntry(tbl, "Put_Num", TBL_FUNCTION, 1);
+  tbl = addEntry(tbl, "Get_Line", TBL_FUNCTION, 2);
   freopen(argv[1], "r", stdin);
   int res = yyparse(&prog);
   if (res != 0) {
@@ -38,15 +39,20 @@ int main(int argc, char *argv[]) {
   printTable(tbl);
 
   stringLiterals *strs = NULL;
-  InstrList *instrs = genCode(prog, &strs);
-  if (!instrs)
+  instrList *instrs = generateIR(prog, &strs, tbl);
+  if (!instrs) {
+    fprintf(stderr, "Unable to generate the IR for the source code given\n");
     return EXIT_FAILURE;
-
+  }
   printInstructions(instrs);
-  if (!codeGen(tbl, prog->varDec, instrs, strs)) {
+  if (!generateASM(tbl, prog->varDec, instrs, strs)) {
+    freeInstructions(&instrs);
+    freeStrings(&strs);
     fprintf(stderr,
             "Unable to generate the assembly for the source code given\n");
     return EXIT_FAILURE;
   }
+  freeInstructions(&instrs);
+  freeStrings(&strs);
   return EXIT_SUCCESS;
 }
