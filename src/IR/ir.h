@@ -23,6 +23,8 @@ typedef enum {
   DIVIDEI,
   POWER,
   POWERI,
+  UNARY,
+  NEG,
 } Opcode;
 struct _variables {
   char *id;

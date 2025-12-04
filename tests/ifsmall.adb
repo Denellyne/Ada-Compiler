@@ -1,10 +1,9 @@
 procedure Main is
-  V : Integer := 10;
+  V : Boolean := True;
 begin
-  if V > 5 then
-    V := 5 * 10;
+  if V then
+    Put_Num (0);
   else
-    V := 10;
+    Put_Num (1);
   end if;
-  Put_Num (V);
 end Main;

@@ -179,6 +179,11 @@ int printInstr(FILE *file, instrList *instrs) {
                   current->instr.arg2) < 0)
         return 0;
       break;
+    case NEG:
+      if (fprintf(file, "not $%s, $%s\n", current->instr.arg1,
+                  current->instr.arg1) < 0)
+        return 0;
+      break;
     case CALL:
 
       if (printCallFunction(file, current->instr.arg1) == 0)
@@ -234,20 +239,37 @@ int printInstr(FILE *file, instrList *instrs) {
     case COND: {
       switch (current->instr.binop) {
 
-      case AND:
-      case OR:
-      case NOT:
       case EQ:
+        if (fprintf(file, "bne $%s, $%s, %s\n", current->instr.arg1,
+                    current->instr.arg2, current->instr.arg4) < 0)
+          return 0;
+        break;
       case NEQ:
+        if (fprintf(file, "beq $%s, $%s, %s\n", current->instr.arg1,
+                    current->instr.arg2, current->instr.arg3) < 0)
+          return 0;
+        break;
       case LT:
+        if (fprintf(file, "bge $%s, $%s, %s\n", current->instr.arg1,
+                    current->instr.arg2, current->instr.arg4) < 0)
+          return 0;
+        break;
       case GT:
+        if (fprintf(file, "ble $%s, $%s, %s\n", current->instr.arg1,
+                    current->instr.arg2, current->instr.arg4) < 0)
+          return 0;
+        break;
       case LE:
+        if (fprintf(file, "bgt $%s, $%s, %s\n", current->instr.arg1,
+                    current->instr.arg2, current->instr.arg4) < 0)
+          return 0;
+        break;
       case GE:
+        if (fprintf(file, "blt $%s, $%s, %s\n", current->instr.arg1,
+                    current->instr.arg2, current->instr.arg4) < 0)
+          return 0;
         break;
       }
-      if (fprintf(file, "bne $%s, $%s, %s\n", current->instr.arg1,
-                  current->instr.arg2, current->instr.arg4) < 0)
-        return 0;
       break;
     }
     }

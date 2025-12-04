@@ -18,20 +18,28 @@ static const char *temps[18] = {"t0", "t1", "t2", "t3", "t4", "t5",
 static int used[18];
 
 int emit2(Opcode opc, char *arg1, char *arg2);
+int emitUnary(Opcode opc, char *arg1);
 int emit3(Opcode opc, char *arg1, char *arg2, char *arg3);
 int emitMovel(char *dest, int num);
 int emitOp(op op, char *dest, char *src1, char *src2, int val);
 int emitCond(op op, char *src1, char *src2, char *label1, char *label2);
 int emitLabel(char *label);
 int emitJump(char *label);
+int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                   stringLiterals **strs);
+int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                      stringLiterals **strs);
+int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                     stringLiterals **strs);
 int emitFunction(char *id, char *temp, char *temp2);
 
 char *newTemp();
 char *newLabel();
 
 int transStm(Stm stm, vars *, stringLiterals **strs, Table tbl);
-int transExp(Exp exp, char *dest, vars *, stringLiterals **strs);
+int transExp(Exp exp, char *dest, vars *, stringLiterals **strs, int not);
 int transBinOp(Exp exp, char *dest, vars *, stringLiterals **strs);
+Exp reverseBoolExpr(Exp exp);
 void freeVariables(vars **variables);
 
 char *getVarTemp(char *id, vars *vars) {
@@ -151,6 +159,23 @@ int emit2(Opcode opc, char *arg1, char *arg2) {
 
 int emit3(Opcode opc, char *arg1, char *arg2, char *arg3) {
   instruction instr = {opc, arg1, arg2, arg3, NULL, 0};
+  instrList *newNode = malloc(sizeof(instrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+int emitUnary(Opcode opc, char *arg1) {
+  instruction instr = {UNARY, arg1, arg1, NULL, NULL, 0, opc};
   instrList *newNode = malloc(sizeof(instrList));
   if (!newNode)
     return 0;
@@ -348,7 +373,7 @@ vars *transVarDecl(Stm varDecl, vars *vars, stringLiterals **strs, int *error) {
       *error = 1;
       return NULL;
     }
-    transExp(varDecl->compound.fst->assign.expr, temp, vars, strs);
+    transExp(varDecl->compound.fst->assign.expr, temp, vars, strs, 0);
   }
   if (varDecl->compound.fst->assign.type == BOOL) {
 
@@ -360,7 +385,7 @@ vars *transVarDecl(Stm varDecl, vars *vars, stringLiterals **strs, int *error) {
       *error = 1;
       return NULL;
     }
-    transExp(varDecl->compound.fst->assign.expr, temp, vars, strs);
+    transExp(varDecl->compound.fst->assign.expr, temp, vars, strs, 0);
   }
   if (varDecl->compound.fst->assign.type == STRLITERAL) {
 
@@ -413,6 +438,129 @@ instrList *generateIR(Prog program, stringLiterals **strs, Table tbl) {
 
   return codeList;
 }
+Exp reverseBoolExpr(Exp exp) {
+  if (!exp)
+    return NULL;
+  if (exp->tag == BOOL)
+    return mkBool(!(exp->bool_val));
+  if (exp->tag == ID) {
+  }
+
+  if (exp->tag == BINOP) {
+
+    switch (exp->binop.op) {
+    case EQ:
+      return mkBinOp(exp->binop.left, NEQ, exp->binop.right);
+      break;
+    case NEQ:
+      return mkBinOp(exp->binop.left, EQ, exp->binop.right);
+      break;
+    case GT:
+      return mkBinOp(exp->binop.left, LE, exp->binop.right);
+      break;
+    case GE:
+      return mkBinOp(exp->binop.left, LT, exp->binop.right);
+      break;
+    case LT:
+      return mkBinOp(exp->binop.left, GE, exp->binop.right);
+      break;
+    case LE:
+      return mkBinOp(exp->binop.left, GT, exp->binop.right);
+      break;
+    case AND:
+      return mkBinOp(reverseBoolExpr(exp->binop.left), OR,
+                     reverseBoolExpr(exp->binop.right));
+      break;
+    case OR:
+      return mkBinOp(reverseBoolExpr(exp->binop.left), AND,
+                     reverseBoolExpr(exp->binop.right));
+      break;
+    }
+  }
+  if (exp->tag == UNARYOP && exp->unaryop.op == NOT)
+    return reverseBoolExpr(exp->unaryop.exp);
+
+  return exp;
+}
+int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                   stringLiterals **strs) {
+  if (exp->tag == UNARYOP && exp->unaryop.op == NOT)
+    exp = reverseBoolExpr(exp->unaryop.exp);
+
+  if (exp->tag == BINOP && exp->binop.op == AND)
+    return emitCompoundIfAnd(exp, labelTrue, labelFalse, vars, strs);
+  return emitCompoundIfOr(exp, labelTrue, labelFalse, vars, strs);
+}
+int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                      stringLiterals **strs) {
+  int neg = 0;
+  if (exp->tag == BINOP && exp->binop.op == AND) {
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT) {
+      exp->binop.left = reverseBoolExpr(exp->binop.left);
+      neg = 1;
+    }
+    char *labelAndTrue = newLabel();
+    if (exp->tag == ID) {
+      return transExp(exp->binop.left, NULL, vars, strs, neg) &&
+             emitCond(NEQ, exp->id, "$zero", labelAndTrue, labelFalse) &&
+             emitLabel(labelAndTrue) &&
+             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
+                            strs);
+    }
+    return transExp(exp->binop.left, NULL, vars, strs, neg) &&
+           emitCond(exp->binop.left->binop.op, condLeft, condRight,
+                    labelAndTrue, labelFalse) &&
+           emitLabel(labelAndTrue) &&
+           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
+  }
+  if (exp->tag == UNARYOP) {
+    exp = reverseBoolExpr(exp);
+    neg = 1;
+  }
+  if (exp->tag == ID) {
+    return transExp(exp, NULL, vars, strs, neg) &&
+           emitCond(NEQ, exp->id, "$zero", labelTrue, labelFalse) &&
+           emitLabel(labelTrue);
+  }
+
+  return transExp(exp, NULL, vars, strs, neg) &&
+         emitCond(exp->binop.op, condLeft, condRight, labelTrue, labelFalse) &&
+         emitLabel(labelTrue);
+}
+int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                     stringLiterals **strs) {
+  int neg = 0;
+  if (exp->tag == BINOP && exp->binop.op == OR) {
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT) {
+      exp->binop.left = reverseBoolExpr(exp->binop.left);
+      neg = 1;
+    }
+    if (exp->tag == ID) {
+      return transExp(exp->binop.left, NULL, vars, strs, neg) &&
+             emitCond(NEQ, exp->id, "$zero", labelTrue, labelFalse) &&
+             emitLabel(labelTrue) &&
+             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
+                            strs);
+    }
+    return transExp(exp->binop.left, NULL, vars, strs, neg) &&
+           emitCond(exp->binop.left->binop.op, condLeft, condRight, labelTrue,
+                    labelFalse) &&
+           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
+  }
+  if (exp->tag == UNARYOP) {
+    exp = reverseBoolExpr(exp);
+    neg = 1;
+  }
+  if (exp->tag == ID) {
+    return transExp(exp, NULL, vars, strs, neg) &&
+           emitCond(NEQ, exp->id, "$zero", labelTrue, labelFalse) &&
+           emitLabel(labelTrue);
+  }
+
+  return transExp(exp, NULL, vars, strs, neg) &&
+         emitCond(exp->binop.op, condLeft, condRight, labelTrue, labelFalse) &&
+         emitLabel(labelTrue);
+}
 
 int transStm(Stm stm, vars *vars, stringLiterals **strs, Table tbl) {
   if (!stm)
@@ -441,8 +589,8 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs, Table tbl) {
       temp = newTemp();
       remove = 1;
     }
-    int ret =
-        transExp(stm->assign.expr, temp, vars, strs) && emit2(MOVE, id, temp);
+    int ret = transExp(stm->assign.expr, temp, vars, strs, 0) &&
+              emit2(MOVE, id, temp);
     if (remove)
       removeTemp(temp);
     return ret;
@@ -455,26 +603,58 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs, Table tbl) {
     break;
   case IF: {
     char *temp = NULL;
-    char *label_true = newLabel();
-    char *label_false = newLabel();
-    char *label_end = newLabel();
-    printf("a\n");
+    char *labelTrue = newLabel();
+    char *labelFalse = newLabel();
+    char *labelEnd = newLabel();
+    int neg = 0;
 
-    int ret = transExp(stm->ifStmt.cond, temp, vars, strs) &&
-              emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight,
-                       label_true, label_false) &&
-
-              emitLabel(label_true) &&
-              transStm(stm->ifStmt.thenBranch, vars, strs, tbl) &&
-              emitJump(label_end) &&
-
-              emitLabel(label_false);
-    if (stm->ifStmt.elseBranch != NULL) {
-      ret = ret && transStm(stm->ifStmt.elseBranch, vars, strs, tbl);
+    if (stm->ifStmt.cond->tag == UNARYOP &&
+        stm->ifStmt.cond->unaryop.op == NOT) {
+      stm->ifStmt.cond = reverseBoolExpr(stm->ifStmt.cond);
+      int neg = 1;
     }
-    return ret && emitJump(label_end) &&
 
-           emitLabel(label_end);
+    if (stm->ifStmt.cond->binop.op == AND || stm->ifStmt.cond->binop.op == OR) {
+
+      int ret =
+          emitCompoundIf(stm->ifStmt.cond, labelTrue, labelFalse, vars, strs) &&
+          transStm(stm->ifStmt.thenBranch, vars, strs, tbl) &&
+          emitJump(labelEnd) &&
+
+          emitLabel(labelFalse);
+      if (stm->ifStmt.elseBranch != NULL)
+        ret = ret && transStm(stm->ifStmt.elseBranch, vars, strs, tbl);
+
+      return ret && emitJump(labelEnd) &&
+
+             emitLabel(labelEnd);
+      emitJump(labelEnd) &&
+
+          emitLabel(labelFalse);
+      return ret;
+    }
+    if (stm->ifStmt.cond->tag == ID) {
+      return transExp(stm->ifStmt.cond, NULL, vars, strs, neg) &&
+             emitCond(NEQ, stm->ifStmt.cond->id, "$zero", labelTrue,
+                      labelFalse) &&
+             emitLabel(labelTrue);
+    }
+
+    int ret = transExp(stm->ifStmt.cond, temp, vars, strs, neg) &&
+              emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight,
+                       labelTrue, labelFalse) &&
+
+              emitLabel(labelTrue) &&
+              transStm(stm->ifStmt.thenBranch, vars, strs, tbl) &&
+              emitJump(labelEnd) &&
+
+              emitLabel(labelFalse);
+    if (stm->ifStmt.elseBranch != NULL)
+      ret = ret && transStm(stm->ifStmt.elseBranch, vars, strs, tbl);
+
+    return ret && emitJump(labelEnd) &&
+
+           emitLabel(labelEnd);
 
     break;
   }
@@ -482,18 +662,18 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs, Table tbl) {
     char *temp = NULL;
     char *label_start = newLabel();
     char *label_body = newLabel();
-    char *label_end = newLabel();
+    char *labelEnd = newLabel();
 
     return emitLabel(label_start) &&
-           transExp(stm->whileStmt.cond, temp, vars, strs) &&
+           transExp(stm->whileStmt.cond, temp, vars, strs, 0) &&
            emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight, label_body,
-                    label_end) &&
+                    labelEnd) &&
 
            emitLabel(label_body) &&
            transStm(stm->whileStmt.body, vars, strs, tbl) &&
            emitJump(label_start) &&
 
-           emitLabel(label_end);
+           emitLabel(labelEnd);
 
     break;
   }
@@ -532,19 +712,19 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs, Table tbl) {
 
     char *temp = "a0";
     char *temp2 = NULL;
-    int ret = transExp(stm->function.args->arg, temp, vars, strs);
+    int ret = transExp(stm->function.args->arg, temp, vars, strs, 0);
     if (stm->function.args->nextArg) {
       temp2 = "a1";
 
-      ret =
-          ret && transExp(stm->function.args->nextArg->arg, temp2, vars, strs);
+      ret = ret &&
+            transExp(stm->function.args->nextArg->arg, temp2, vars, strs, 0);
     }
     return emitFunction(stm->function.ident, temp, temp2);
   } break;
   }
 }
 
-int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
+int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs, int not) {
   if (!exp)
     return 0;
   else if (!dest && exp->tag == NUM)
@@ -566,10 +746,15 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
 
     if (strcmp(dest, id) == 0)
       break;
+    if (not)
+      return emit2(NEG, dest, dest);
+
     return emit2(MOVE, dest, id);
     break;
   }
   case BOOL:
+    if (not)
+      return emitMoveI(dest, !(exp->bool_val));
     return emitMoveI(dest, exp->bool_val);
     break;
   case OP:
@@ -590,6 +775,10 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
       id = strdup(id);
     return emit2(LOADADRESS, dest, id);
   } break;
+  case UNARYOP:
+
+    return transExp(exp->unaryop.exp, dest, vars, strs, not);
+    break;
   }
   return 1;
 }
@@ -600,22 +789,22 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
     condLeft = newTemp();
     condRight = newTemp();
 
-    transExp(exp->binop.left, condLeft, vars, strs);
-    transExp(exp->binop.right, condRight, vars, strs);
+    transExp(exp->binop.left, condLeft, vars, strs, 0);
+    transExp(exp->binop.right, condRight, vars, strs, 0);
     removeTemp(condLeft);
     removeTemp(condRight);
     return 1;
   }
   char *t1 = newTemp();
 
-  transExp(exp->binop.left, t1, vars, strs);
-  int i = transExp(exp->binop.right, NULL, vars, strs);
+  transExp(exp->binop.left, t1, vars, strs, 0);
+  int i = transExp(exp->binop.right, NULL, vars, strs, 0);
   if (i == -1) {
     removeTemp(t1);
     return emitOp(exp->binop.op, dest, t1, NULL, (int)exp->binop.right->val);
   }
   char *t2 = newTemp();
-  transExp(exp->binop.right, t2, vars, strs);
+  transExp(exp->binop.right, t2, vars, strs, 0);
   removeTemp(t1);
   removeTemp(t2);
 
@@ -627,6 +816,15 @@ void printInstructions(instrList *list) {
   instrList *current = list;
   while (current != NULL) {
     switch (current->instr.opcode) {
+    case UNARY: {
+      switch (current->instr.binop) {
+      case NOT:
+        printf("NOT %s \n", current->instr.arg1);
+        break;
+      }
+
+      break;
+    }
     case SUB:
       printf("SUB %s %s %s\n", current->instr.arg1, current->instr.arg2,
              current->instr.arg3);
@@ -776,7 +974,17 @@ void printInstructions(instrList *list) {
       case GE:
         opStr = ">=";
         break;
+      case AND:
+        opStr = "AND";
+        break;
+      case NOT:
+        opStr = "NOT";
+        break;
+      case OR:
+        opStr = "OR";
+        break;
       default:
+        printf("%d\n", current->instr.binop);
         opStr = "?";
       }
       printf("COND %s %s %s %s %s\n", current->instr.arg1, opStr,
