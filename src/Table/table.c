@@ -18,7 +18,7 @@ int convertType(int type) {
   case ID:
     return TBL_ID;
   default:
-    return type;
+    return TBL_ERROR;
   }
 }
 
@@ -32,11 +32,97 @@ int checkType(Table tbl, char *name) {
   return TBL_ERROR;
 }
 int checkExprType(Table tbl, Exp expr) {
-  if (expr->tag == UNARYOP)
-    return checkExprType(tbl, expr->unaryop.exp);
+  switch (expr->tag) {
+  case BOOL:
+    return TBL_BOOL;
+  case NUM:
+    return TBL_INT;
+  case STRLITERAL:
+    return TBL_STRING;
+  case ID:
+    return checkType(tbl, expr->id);
+  case UNARYOP: {
+
+    if (expr->unaryop.op == NOT) {
+      int ret = checkExprType(tbl, expr->unaryop.exp);
+      if (ret != TBL_BOOL)
+        return TBL_ERROR;
+      return TBL_BOOL;
+    }
+    if (expr->unaryop.op == PLUS) {
+      int ret = checkExprType(tbl, expr->unaryop.exp);
+      if (ret != TBL_INT)
+        return TBL_ERROR;
+      return TBL_INT;
+    }
+    if (expr->unaryop.op == MINUS) {
+      int ret = checkExprType(tbl, expr->unaryop.exp);
+      if (ret != TBL_INT)
+        return TBL_ERROR;
+      return TBL_INT;
+    }
+  } break;
+  case BINOP: {
+
+    switch (expr->binop.op) {
+    case POW:
+    case PLUS:
+    case MINUS:
+    case TIMES:
+    case DIV:
+      return checkExprType(tbl, expr->binop.left) &&
+             checkExprType(tbl, expr->binop.right) && TBL_INT;
+      break;
+    case XOR: {
+
+      int left = checkExprType(tbl, expr->binop.left);
+      int right = checkExprType(tbl, expr->binop.right);
+      if (left && right && TBL_BOOL)
+        return TBL_BOOL;
+      else if (left && right && TBL_INT)
+        return TBL_INT;
+      return TBL_ERROR;
+    } break;
+    case EQ:
+    case NEQ:
+    case LT:
+    case GT:
+    case LE:
+    case GE: {
+
+      int left = checkExprType(tbl, expr->binop.left);
+      int right = checkExprType(tbl, expr->binop.right);
+      if (left != TBL_INT || right != TBL_INT || left != right) {
+        fprintf(stderr,
+                "Invalid type for operation, Wanted:TBL_INT Got:Left=%d "
+                "Right=%d Result:%d\n",
+                left, right, left && right && TBL_INT);
+
+        return TBL_ERROR;
+      }
+      return TBL_BOOL;
+    } break;
+    case AND:
+    case OR: {
+
+      int left = checkExprType(tbl, expr->binop.left);
+      int right = checkExprType(tbl, expr->binop.right);
+      if (left != TBL_BOOL || right != TBL_BOOL || left != right) {
+        fprintf(stderr,
+                "Invalid type for operation, Wanted:TBL_BOOL Got:Left=%d "
+                "Right=%d Result:%d\n",
+                left, right, left && right && TBL_BOOL);
+
+        return TBL_ERROR;
+      }
+      return TBL_BOOL;
+    } break;
+    }
+  } break;
+  }
   if (expr->tag == BINOP) {
-    int right = checkExprType(tbl, expr->binop.left);
     int left = checkExprType(tbl, expr->binop.right);
+    int right = checkExprType(tbl, expr->binop.left);
     if (left == right)
       return left;
     return TBL_ERROR;
@@ -67,6 +153,21 @@ Table addEntry(Table tbl, char *name, int type, unsigned numArgs) {
   ptr->numArgs = numArgs;
   return ptr;
 }
+int validateExprType(Table tbl, int typeTag, int exprType) {
+
+  if (exprType == TBL_ERROR)
+    return 2;
+
+  if (typeTag != exprType)
+    return 3;
+
+  return 1;
+}
+int validateExprTypeEx(Table tbl, Exp expr, int typeTag) {
+  int exprType = checkExprType(tbl, expr);
+
+  return validateExprType(tbl, typeTag, exprType);
+}
 Table addVariableDeclarations(Table tbl, Stm varDecl) {
   if (!varDecl)
     return tbl;
@@ -78,20 +179,96 @@ Table addVariableDeclarations(Table tbl, Stm varDecl) {
 
   int typeTag = convertType(varDecl->compound.fst->assign.type);
   int exprType = checkExprType(tbl, varDecl->compound.fst->assign.expr);
-  if (exprType == TBL_ERROR) {
+  int ret = 0;
 
-    fprintf(stderr, "Variable %s is assigned to malformed expression\n",
-            varDecl->compound.fst->ident);
-    return NULL;
-  }
-  if (typeTag != exprType) {
+  if (ret = validateExprType(tbl, typeTag, exprType), ret == 3) {
+
     fprintf(stderr, "Variable %s is assigned to expression of different type\n",
-            varDecl->compound.fst->ident);
+            varDecl->compound.fst->assign.ident);
+    return NULL;
+
+  } else if (ret == 2) {
+    fprintf(stderr, "Variable %s is assigned to malformed expression\n",
+            varDecl->compound.fst->assign.ident);
     return NULL;
   }
 
   tbl = addEntry(tbl, varDecl->compound.fst->assign.ident, typeTag, 0);
   return addVariableDeclarations(tbl, varDecl->compound.snd);
+}
+int validateAST(Table tbl, Stm stm) {
+  if (!tbl)
+    return 0;
+  if (!stm)
+    return 1;
+  switch (stm->tag) {
+
+  case COMPOUND:
+    return validateAST(tbl, stm->compound.fst) &&
+           validateAST(tbl, stm->compound.snd);
+    break;
+  case ASSIGN: {
+
+    Entry *entry = lookup(tbl, stm->assign.ident);
+    if (!entry) {
+      fprintf(stderr, "Unable to find varialbe in the symbol table\n");
+      return 0;
+    }
+    int typeTag = entry->typeTag;
+    int exprType = checkExprType(tbl, stm->assign.expr);
+    int ret = 0;
+
+    if (ret = validateExprType(tbl, typeTag, exprType), ret == 3) {
+      fprintf(stderr,
+              "Variable %s is assigned to expression of different type\n",
+              stm->assign.ident);
+      return 0;
+    } else if (ret == 2) {
+      fprintf(stderr, "Variable %s is assigned to malformed expression\n",
+              stm->assign.ident);
+      return 0;
+    }
+  } break;
+  case FUNCTION: {
+    printf("%s\n", stm->function.ident);
+    Table entry = lookup(tbl, stm->function.ident);
+    if (!entry) {
+      fprintf(stderr, "Unable to find symbol for the given function\n");
+      return 0;
+    }
+    Arg head = stm->function.args;
+    int counter = 0;
+    while (head) {
+      counter++;
+      head = head->nextArg;
+    }
+
+    if (counter != entry->numArgs) {
+      fprintf(stderr,
+              "Number of arguments given doesn't correspond to "
+              "function signature\n Number of arguments passed:%d\n "
+              "Number of "
+              "arguments in function signature:%d\n",
+              counter, entry->numArgs);
+      return 0;
+    }
+
+  } break;
+
+  case IF:
+
+    if (checkExprType(tbl, stm->ifStmt.cond) != TBL_BOOL) {
+      fprintf(stderr, "Condition isn't of type Bool\n");
+      return 0;
+    }
+    return validateAST(tbl, stm->ifStmt.thenBranch) &&
+           validateAST(tbl, stm->ifStmt.elsifBranch) &&
+           validateAST(tbl, stm->ifStmt.elseBranch);
+  case WHILE:
+    return validateAST(tbl, stm->whileStmt.body);
+    break;
+  }
+  return 1;
 }
 void printTableRecur(Table tbl) {
   if (!tbl)

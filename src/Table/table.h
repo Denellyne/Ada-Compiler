@@ -6,7 +6,7 @@
 struct _entry {
   char *key;
   enum {
-    TBL_INT,
+    TBL_INT = 1,
     TBL_BOOL,
     TBL_STRING,
     TBL_ID,
@@ -22,9 +22,10 @@ typedef struct _entry Entry;
 typedef Entry *Table;
 
 // extern struct type lookup_value(Table, char *);
-extern Entry *lookup(Table, char *);
-extern Table addEntry(Table, char *, int type, unsigned numArgs);
+Entry *lookup(Table, char *);
+Table addEntry(Table, char *, int type, unsigned numArgs);
 // extern void update_value(Entry *, struct type);
-extern Table addVariableDeclarations(Table, Stm);
-extern void printTable(Table);
+Table addVariableDeclarations(Table, Stm);
+void printTable(Table);
+int validateAST(Table, Stm);
 #endif

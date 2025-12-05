@@ -30,16 +30,23 @@ int main(int argc, char *argv[]) {
   tbl = addEntry(tbl, "Get_Line", TBL_FUNCTION, 2);
   freopen(argv[1], "r", stdin);
   int res = yyparse(&prog);
-  if (res != 0) {
+  if (res != 0)
     return EXIT_FAILURE;
-  }
+
+  if (!prog || !(prog->varDec) || !(prog->statements))
+    return EXIT_FAILURE;
+
   tbl = addVariableDeclarations(tbl, prog->varDec);
   if (!tbl)
     return EXIT_FAILURE;
+
+  if (!validateAST(tbl, prog->statements))
+    return EXIT_FAILURE;
+
   printTable(tbl);
 
   stringLiterals *strs = NULL;
-  instrList *instrs = generateIR(prog, &strs, tbl);
+  instrList *instrs = generateIR(prog, &strs);
   if (!instrs) {
     fprintf(stderr, "Unable to generate the IR for the source code given\n");
     return EXIT_FAILURE;

@@ -16,14 +16,32 @@ testASM() {
   fi
 }
 
-cd ../src/
-make clean >/dev/null 2>&1
-make build
-cd ../tests/
+compile() {
+  cd ../src/
+  make clean >/dev/null 2>&1
+  make build
+  cd ../tests/
+}
 
+build=1
 tests=0
 successes=0
 fails=0
+while getopts "e" option; do
+  case $option in
+  e)
+    build=0
+    ;;
+  \?) # Invalid option
+    echo "Error: Invalid option"
+    exit
+    ;;
+  esac
+done
+
+if [ $build = 1 ]; then
+  compile
+fi
 
 for filename in ./*.adb; do
   tests=$((tests + 1))

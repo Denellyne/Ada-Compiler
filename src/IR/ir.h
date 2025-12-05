@@ -2,7 +2,6 @@
 #define IR
 
 #include "../Ast/ast.h"
-#include "../Table/table.h"
 
 typedef enum {
   MOVE,
@@ -56,7 +55,7 @@ struct _instrList {
 };
 typedef struct _instrList instrList;
 
-instrList *generateIR(Prog program, stringLiterals **strs, Table tbl);
+instrList *generateIR(Prog program, stringLiterals **strs);
 void printInstructions(instrList *list);
 void freeInstructions(instrList **list);
 void freeStrings(stringLiterals **strs);

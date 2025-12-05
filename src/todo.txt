@@ -1,3 +1,4 @@
 branches
+os comparadores é so INT
 get_line
 bitwise
