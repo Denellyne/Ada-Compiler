@@ -580,8 +580,8 @@ int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
       ret = 1;
       val = exp->binop.right->val;
     }
-    return ret && emitCond(exp->binop.op, condLeft, condRight, labelTrue,
-                           labelFalse, val);
+    return ret && emitCond(exp->binop.op, condLeft, condRight, labelFalse,
+                           labelTrue, val);
   } else if (exp->tag == ID) {
     char *id = getVarTemp(exp->id, vars);
     if (id == NULL) {
@@ -590,11 +590,11 @@ int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
     }
     id = strdup(id);
     return transExp(exp, id, vars, strs) &&
-           emitCond(NEQ, id, "zero", labelTrue, labelFalse, 0);
+           emitCond(NEQ, id, "zero", labelFalse, labelTrue, 0);
   } else if (exp->tag == BOOL || exp->tag == NUM) {
     char *temp = newTemp();
     int ret = transExp(exp, temp, vars, strs) &&
-              emitCond(NEQ, temp, "zero", labelTrue, labelFalse, 0);
+              emitCond(NEQ, temp, "zero", labelFalse, labelTrue, 0);
     removeTemp(temp);
     return ret;
   }
@@ -774,7 +774,7 @@ int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
     if (exp->binop.left->tag == BOOL || exp->binop.left->tag == NUM) {
       char *temp = newTemp();
       int ret = transExp(exp->binop.left, temp, vars, strs) &&
-                emitCond(EQ, temp, "zero", labelFalse, labelTrue, 0);
+                emitCond(NEQ, temp, "zero", labelFalse, labelTrue, 0);
       removeTemp(temp);
       return ret && emitCompoundIf(exp->binop.right, labelTrue, labelFalse,
                                    vars, strs);
@@ -789,7 +789,7 @@ int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
       }
       id = strdup(id);
       return transExp(exp->binop.left, id, vars, strs) &&
-             emitCond(EQ, id, "zero", labelFalse, labelTrue, 0) &&
+             emitCond(NEQ, id, "zero", labelFalse, labelTrue, 0) &&
              emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
                             strs);
     }
@@ -951,7 +951,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
     if (stm->whileStmt.cond->binop.op == AND ||
         stm->whileStmt.cond->binop.op == OR) {
 
-      int ret = emitCompoundWhile(stm->whileStmt.cond, labelFalse, labelEnd,
+      int ret = emitCompoundWhile(stm->whileStmt.cond, labelEnd, labelFalse,
                                   vars, strs);
       if (!ret) {
         fprintf(stderr,
