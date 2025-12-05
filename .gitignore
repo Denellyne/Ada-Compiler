@@ -4,3 +4,4 @@ src/parser.tab.*
 bin/
 *.bin
 */mars.jar
+tests/other

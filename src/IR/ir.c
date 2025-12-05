@@ -566,8 +566,14 @@ Exp applyNotToExpr(Exp exp, int neg, vars *vars) {
 }
 int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                       stringLiterals **strs) {
-  if (exp->tag == UNARYOP && exp->unaryop.op == NOT)
+  if (exp->tag == UNARYOP && exp->unaryop.op == NOT) {
+
     exp = applyNotToExpr(exp->unaryop.exp, 1, vars);
+    if (!exp) {
+      fprintf(stderr, "Expression returned from applying Not is NULL\n");
+      return 0;
+    }
+  }
 
   if (exp->tag == BINOP && exp->binop.op == AND)
     return emitCompoundWhileAnd(exp, labelTrue, labelFalse, vars, strs);
@@ -603,8 +609,14 @@ int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                    stringLiterals **strs) {
   int neg = 0;
-  if (exp->tag == UNARYOP && exp->unaryop.op == NOT)
+  if (exp->tag == UNARYOP && exp->unaryop.op == NOT) {
+
     exp = applyNotToExpr(exp->unaryop.exp, 1, vars);
+    if (!exp) {
+      fprintf(stderr, "Expression returned after applying Not is NULL\n");
+      return 0;
+    }
+  }
 
   if (exp->tag == BINOP && exp->binop.op == AND)
     return emitCompoundIfAnd(exp, labelTrue, labelFalse, vars, strs);
@@ -640,8 +652,14 @@ int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 int emitCompoundWhileAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                          stringLiterals **strs) {
   if (exp->tag == BINOP && exp->binop.op == AND) {
-    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT) {
+
       exp->binop.left = applyNotToExpr(exp->binop.left->unaryop.exp, 1, vars);
+      if (!exp->binop.left) {
+        fprintf(stderr, "Expression returned after applying Not is NULL\n");
+        return 0;
+      }
+    }
 
     if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
       return emitCompoundWhileAnd(exp->binop.left, labelTrue, labelFalse, vars,
@@ -671,8 +689,15 @@ int emitCompoundWhileAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 int emitCompoundWhileOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                         stringLiterals **strs) {
   if (exp->tag == BINOP && exp->binop.op == OR) {
-    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT) {
+
       exp->binop.left = applyNotToExpr(exp->binop.left->unaryop.exp, 1, vars);
+      if (!exp->binop.left) {
+
+        fprintf(stderr, "Expression returned after applying Not is NULL\n");
+        return 0;
+      }
+    }
 
     if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
       return emitCompoundWhileAnd(exp->binop.left, labelTrue, labelFalse, vars,
@@ -703,8 +728,15 @@ int emitCompoundWhileOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                       stringLiterals **strs) {
   if (exp->tag == BINOP && exp->binop.op == AND) {
-    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT) {
+
       exp->binop.left = applyNotToExpr(exp->binop.left->unaryop.exp, 1, vars);
+      if (!exp->binop.left) {
+        fprintf(stderr, "Expression returned after applying Not is NULL\n");
+        return 0;
+      }
+    }
+
     if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
       return emitCompoundIfAnd(exp->binop.left, labelTrue, labelFalse, vars,
                                strs) &&
@@ -758,8 +790,16 @@ int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                      stringLiterals **strs) {
   if (exp->tag == BINOP && exp->binop.op == OR) {
-    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT) {
+
       exp->binop.left = applyNotToExpr(exp->binop.left->unaryop.exp, 1, vars);
+      if (!exp->binop.left) {
+
+        fprintf(stderr, "Expression returned after applying Not is NULL\n");
+        return 0;
+      }
+    }
+
     if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
       return emitCompoundIfAnd(exp->binop.left, labelTrue, labelFalse, vars,
                                strs) &&
@@ -981,7 +1021,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
       int ret = transExp(stm->whileStmt.cond, temp, vars, strs) &&
                 emitCond(NEQ, temp, "zero", labelFalse, labelEnd, 0) &&
                 transStm(stm->whileStmt.body, vars, strs) &&
-                emitJump(labelFalse) && emitLabel(labelFalse);
+                emitJump(labelFalse);
       removeTemp(temp);
 
       return ret && emitJump(labelEnd) && emitLabel(labelEnd);
@@ -1008,16 +1048,29 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
 
   case FUNCTION: {
 
-    char *temp = "a0";
-    char *temp2 = NULL;
-    int ret = transExp(stm->function.args->arg, temp, vars, strs);
-    if (stm->function.args->nextArg) {
-      temp2 = "a1";
+    int tag = stm->function.args->arg->tag;
 
-      ret =
-          ret && transExp(stm->function.args->nextArg->arg, temp2, vars, strs);
+    char *dst1 = "a0";
+    char *dst2 = NULL;
+    char *temp = newTemp();
+    int ret = transExp(stm->function.args->arg, temp, vars, strs);
+    if (!ret) {
+      fprintf(stderr, "Unable to translate expression inside function\n");
+      return 0;
     }
-    return emitFunction(stm->function.ident, temp, temp2);
+    emit2(MOVE, dst1, temp);
+    if (stm->function.args->nextArg) {
+      dst2 = "a1";
+
+      ret = ret && transExp(stm->function.args->nextArg->arg, temp, vars, strs);
+      if (!ret) {
+        fprintf(stderr, "Unable to translate expression inside function\n");
+        return 0;
+      }
+      emit2(MOVE, dst2, temp);
+    }
+    removeTemp(temp);
+    return emitFunction(stm->function.ident, dst1, dst2);
   } break;
   }
 }
@@ -1025,15 +1078,17 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
 int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
   if (!exp)
     return 0;
-  else if (!dest && exp->tag == NUM)
-    return -1;
 
   switch (exp->tag) {
 
   case NUM:
+    if (!dest)
+      return -1;
     return emitMoveI(dest, (int)exp->val);
     break;
   case ID: {
+    if (!dest)
+      return -2;
     if (searchStrLiteralById(exp->id, *strs))
       return emit2(LOADADRESS, dest, exp->id);
     char *id = getVarTemp(exp->id, vars);
@@ -1042,7 +1097,7 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
     else
       id = strdup(id);
 
-    if (strcmp(dest, id) == 0)
+    if (dest && !strcmp(dest, id))
       break;
 
     return emit2(MOVE, dest, id);
@@ -1089,18 +1144,46 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
     removeTemp(condRight);
     return 1;
   }
-  char *t1 = newTemp();
+  char *t1 = NULL;
+  int temp1 = 0, temp2 = 0;
+  if (exp->binop.left->tag == ID) {
+    t1 = getVarTemp(exp->binop.left->id, vars);
+    if (!t1) {
+      fprintf(stderr, "Unable to find register binded to variable\n");
+      return 0;
+    }
+    t1 = strdup(t1);
+  } else if (!t1) {
+    t1 = newTemp();
+    temp1 = 1;
+  }
 
   transExp(exp->binop.left, t1, vars, strs);
+
   int i = transExp(exp->binop.right, NULL, vars, strs);
+  char *t2 = NULL;
   if (i == -1) {
-    removeTemp(t1);
+    if (temp1)
+      removeTemp(t1);
     return emitOp(exp->binop.op, dest, t1, NULL, (int)exp->binop.right->val);
+  } else if (i == -2) {
+    t2 = getVarTemp(exp->binop.right->id, vars);
+    if (!t2) {
+      fprintf(stderr, "Unable to find register binded to variable\n");
+      return 0;
+    }
+    t2 = strdup(t2);
+  } else if (i == 0)
+    return 0;
+  else if (!t2) {
+    t2 = newTemp();
+    temp2 = 1;
   }
-  char *t2 = newTemp();
   transExp(exp->binop.right, t2, vars, strs);
-  removeTemp(t1);
-  removeTemp(t2);
+  if (temp1)
+    removeTemp(t1);
+  if (temp2)
+    removeTemp(t2);
 
   return emitOp(exp->binop.op, dest, t1, t2, 0);
 }

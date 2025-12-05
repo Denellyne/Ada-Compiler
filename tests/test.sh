@@ -43,6 +43,8 @@ if [ $build = 1 ]; then
   compile
 fi
 
+bash ./gen.sh
+
 for filename in ./*.adb; do
   tests=$((tests + 1))
   if ../bin/ada $filename >/dev/null 2>&1; then
@@ -63,5 +65,4 @@ echo -e -n Tests:$tests
 echo -e -n " |\033[0;32m Success:$successes\033[0m |"
 echo -e "\033[0;31m Fail:$fails\033[0m"
 
-rm out.bin >/dev/null 2>&1
-rm out.txt >/dev/null 2>&1
+rm out.bin out.txt *.adb *.txt >/dev/null 2>&1

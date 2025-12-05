@@ -158,6 +158,9 @@ int printInstr(FILE *file, instrList *instrs) {
         return 0;
       break;
     case DIVIDEI:
+      if (fprintf(file, "div $%s,$%s, %d\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.num) < 0)
+        return 0;
       break;
     case MULT:
       if (fprintf(file, "mul $%s, $%s, $%s\n", current->instr.arg1,
@@ -166,7 +169,7 @@ int printInstr(FILE *file, instrList *instrs) {
       break;
     case DIVIDE:
       if (fprintf(file, "div $%s,$%s, $%s\n", current->instr.arg1,
-                  current->instr.arg1, current->instr.arg3) < 0)
+                  current->instr.arg2, current->instr.arg3) < 0)
         return 0;
       break;
     case ADD:
