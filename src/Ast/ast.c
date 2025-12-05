@@ -71,7 +71,30 @@ Stm mkAssign(char *id, int type, Exp exp) {
   Stm ptr = (Stm)malloc(sizeof(struct _stm));
   ptr->tag = ASSIGN;
   ptr->assign.ident = id;
+  if (!exp) {
+    switch (type) {
+    case NUM:
+      exp = mkNum(0);
+      break;
+    case STRLITERAL: {
+      char *str = (char *)malloc(sizeof(char) * 3);
+      str[0] = ' ';
+      str[1] = '\0';
+      exp = mkStringLiteral(str);
+      free(str);
+    } break;
+    case BOOL:
+      exp = mkBool(0);
+      break;
+    default:
+      exp = NULL;
+      break;
+    }
+  }
+  if (!exp)
+    return NULL;
   ptr->assign.expr = exp;
+
   if (type == -1)
     ptr->assign.type = exp->tag;
   else

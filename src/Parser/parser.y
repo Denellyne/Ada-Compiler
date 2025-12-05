@@ -104,6 +104,7 @@ varDec : TOK_PROC TOK_MAIN TOK_IS variable {$$ = $4;}
 
 
 variable : TOK_ID TOK_COLON varTypes TOK_ASSIGN expr TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,$3,$5),$7);}
+         | TOK_ID TOK_COLON varTypes TOK_END_STATEMENT variable {$$ = mkCompound(mkAssign($1,$3,NULL),$5);}
          | stmtAssign variable {$$ = mkCompound($1,$2);}
          | %empty {$$ = NULL;}
          ;

@@ -1,8 +1,7 @@
 procedure Main is
-  V : Integer := 10;
+  V : Boolean := True;
 begin
-  if not (V < 3) then
-    V := 15;
+  if not (1) then
     Put_Line ("15");
   else
     Put_Line ("SIGMA\n");

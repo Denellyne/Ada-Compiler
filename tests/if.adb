@@ -1,5 +1,7 @@
 procedure Main is
-  V : Integer := 10;
+  V   : Integer := 10;
+  str : String;
+
 begin
   if V > 5 then
     V := V - 1;
@@ -11,6 +13,6 @@ begin
   if V > 5 then
     V := 5 * 2;
   else
-    Get_Line (True);
+    Get_Line (str, V);
   end if;
 end Main;

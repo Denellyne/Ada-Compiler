@@ -132,6 +132,16 @@ int printInstr(FILE *file, instrList *instrs) {
       if (fprintf(file, "move $%s,$v0\n", current->instr.arg1) < 0)
         return 0;
       break;
+    case XR:
+      if (fprintf(file, "xor $%s,$%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
+        return 0;
+      break;
+    case XRI:
+      if (fprintf(file, "xori $%s,$%s, %d\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.num) < 0)
+        return 0;
+      break;
     case SUB:
       if (fprintf(file, "subu $%s,$%s, $%s\n", current->instr.arg1,
                   current->instr.arg2, current->instr.arg3) < 0)
@@ -180,7 +190,7 @@ int printInstr(FILE *file, instrList *instrs) {
         return 0;
       break;
     case NEG:
-      if (fprintf(file, "not $%s, $%s\n", current->instr.arg1,
+      if (fprintf(file, "sltiu $%s, $%s,1\n", current->instr.arg1,
                   current->instr.arg1) < 0)
         return 0;
       break;
@@ -201,7 +211,7 @@ int printInstr(FILE *file, instrList *instrs) {
       break;
     case NOTEQUALSI:
       if (fprintf(file, "beq $%s, $%d, %s\n", current->instr.arg1,
-                  current->instr.num, current->instr.arg3) < 0)
+                  current->instr.num, current->instr.arg4) < 0)
         return 0;
       break;
     case LESSERI:
@@ -230,7 +240,7 @@ int printInstr(FILE *file, instrList *instrs) {
       break;
     case NOTEQUALS:
       if (fprintf(file, "beq $%s, $%s, %s\n", current->instr.arg1,
-                  current->instr.arg2, current->instr.arg3) < 0)
+                  current->instr.arg2, current->instr.arg4) < 0)
         return 0;
       break;
     case LESSER:

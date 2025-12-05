@@ -36,6 +36,8 @@ typedef enum {
   NOTEQUALSI,
   GREATERI,
   LESSERI,
+  XR,
+  XRI,
 } Opcode;
 struct _variables {
   char *id;

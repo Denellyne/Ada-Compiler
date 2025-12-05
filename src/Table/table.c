@@ -46,9 +46,9 @@ int checkExprType(Table tbl, Exp expr) {
 
     if (expr->unaryop.op == NOT) {
       int ret = checkExprType(tbl, expr->unaryop.exp);
-      if (ret != TBL_BOOL)
+      if (ret != TBL_BOOL && ret != TBL_INT)
         return TBL_ERROR;
-      return TBL_BOOL;
+      return ret;
     }
     if (expr->unaryop.op == PLUS) {
       int ret = checkExprType(tbl, expr->unaryop.exp);
@@ -78,10 +78,12 @@ int checkExprType(Table tbl, Exp expr) {
 
       int left = checkExprType(tbl, expr->binop.left);
       int right = checkExprType(tbl, expr->binop.right);
-      if (left && right && TBL_BOOL)
-        return TBL_BOOL;
-      else if (left && right && TBL_INT)
+      if ((left && right) == 0)
+        return TBL_ERROR;
+      if (left && TBL_INT)
         return TBL_INT;
+      else if (left && TBL_BOOL)
+        return TBL_BOOL;
       return TBL_ERROR;
     } break;
     case EQ:
@@ -93,30 +95,33 @@ int checkExprType(Table tbl, Exp expr) {
 
       int left = checkExprType(tbl, expr->binop.left);
       int right = checkExprType(tbl, expr->binop.right);
-      if (left != TBL_INT || right != TBL_INT || left != right) {
-        fprintf(stderr,
-                "Invalid type for operation, Wanted:TBL_INT Got:Left=%d "
-                "Right=%d Result:%d\n",
-                left, right, left && right && TBL_INT);
-
+      if (left == TBL_ERROR || right == TBL_ERROR) {
+        fprintf(stderr, "One of the operands on a comparison was an error\n");
         return TBL_ERROR;
       }
-      return TBL_BOOL;
+      if (left && (TBL_INT || TBL_BOOL) && right && (TBL_BOOL || TBL_INT))
+        return left & right;
+
+      fprintf(stderr,
+              "Invalid type for operation, Wanted:TBL_INT Got:Left=%d "
+              "Right=%d Result:%d\n",
+              left, right, left && right && TBL_INT);
+
+      return TBL_ERROR;
     } break;
     case AND:
     case OR: {
 
       int left = checkExprType(tbl, expr->binop.left);
       int right = checkExprType(tbl, expr->binop.right);
-      if (left != TBL_BOOL || right != TBL_BOOL || left != right) {
-        fprintf(stderr,
-                "Invalid type for operation, Wanted:TBL_BOOL Got:Left=%d "
-                "Right=%d Result:%d\n",
-                left, right, left && right && TBL_BOOL);
+      if (left && (TBL_INT || TBL_BOOL) && right && (TBL_BOOL || TBL_INT))
+        return left && right;
+      fprintf(stderr,
+              "Invalid type for operation, Wanted:TBL_BOOL Got:Left=%d "
+              "Right=%d Result:%d\n",
+              left, right, left && right && TBL_BOOL);
 
-        return TBL_ERROR;
-      }
-      return TBL_BOOL;
+      return TBL_ERROR;
     } break;
     }
   } break;
@@ -285,7 +290,16 @@ int validateAST(Table tbl, Stm stm) {
         return 0;
       }
       counter++;
-      if (checkExprType(tbl, head->arg) != headArg->typeTag) {
+      if ((headArg->typeTag & TBL_ID)) {
+        if (head->arg->tag != ID || !lookup(tbl, head->arg->id)) {
+          fprintf(stderr,
+                  "Passed argument needs to be a variable in function %s\n",
+                  stm->function.ident);
+          return 0;
+        }
+      }
+      int exprType = checkExprType(tbl, head->arg);
+      if (((headArg->typeTag & (TBL_ID - 1)) && exprType) == 0) {
         fprintf(stderr, "Passed argument of wrong type to function %s\n",
                 stm->function.ident);
         return 0;
@@ -315,15 +329,18 @@ int validateAST(Table tbl, Stm stm) {
 
   } break;
 
-  case IF:
+  case IF: {
 
-    if (checkExprType(tbl, stm->ifStmt.cond) != TBL_BOOL) {
-      fprintf(stderr, "Condition isn't of type Bool\n");
+    int type = checkExprType(tbl, stm->ifStmt.cond);
+    if (type != TBL_BOOL && type != TBL_INT) {
+      fprintf(stderr, "Condition isn't of type Bool, type received:%d\n", type);
       return 0;
     }
     return validateAST(tbl, stm->ifStmt.thenBranch) &&
-           validateAST(tbl, stm->ifStmt.elsifBranch) &&
+           // validateAST(tbl, stm->ifStmt.elsifBranch) &&
            validateAST(tbl, stm->ifStmt.elseBranch);
+  } break;
+
   case WHILE:
     return validateAST(tbl, stm->whileStmt.body);
     break;

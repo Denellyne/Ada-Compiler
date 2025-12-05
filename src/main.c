@@ -30,12 +30,13 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Unable to add static function to table\n");
     return EXIT_FAILURE;
   }
-  tbl = addEntry(tbl, "Put_Num", TBL_FUNCTION, 1, TBL_INT);
+  tbl = addEntry(tbl, "Put_Num", TBL_FUNCTION, 1, TBL_INT | TBL_BOOL);
   if (!tbl) {
     fprintf(stderr, "Unable to add static function to table\n");
     return EXIT_FAILURE;
   }
-  tbl = addEntry(tbl, "Get_Line", TBL_FUNCTION, 2, TBL_STRING, TBL_INT);
+  tbl = addEntry(tbl, "Get_Line", TBL_FUNCTION, 2, TBL_STRING | TBL_ID,
+                 TBL_INT | TBL_ID);
   if (!tbl) {
     fprintf(stderr, "Unable to add static function to table\n");
     return EXIT_FAILURE;

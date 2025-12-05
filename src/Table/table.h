@@ -7,11 +7,11 @@ struct _entry {
   char *key;
   enum {
     TBL_INT = 1,
-    TBL_BOOL,
-    TBL_STRING,
-    TBL_ID,
-    TBL_FUNCTION,
-    TBL_ERROR
+    TBL_BOOL = 2,
+    TBL_STRING = 4,
+    TBL_FUNCTION = 8,
+    TBL_ID = 16,
+    TBL_ERROR = 32
   } typeTag;
   unsigned numArgs;
   struct _argType {
