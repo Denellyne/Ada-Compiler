@@ -3,6 +3,7 @@
  */
 
 #include "table.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -145,12 +146,46 @@ Entry *lookup(Table tbl, char *name) {
 
 /* Add an entry to the begining of a table
  */
-Table addEntry(Table tbl, char *name, int type, unsigned numArgs) {
+Table addEntry(Table tbl, char *name, int type, unsigned numArgs, ...) {
   Entry *ptr = malloc(sizeof(Entry));
   ptr->key = name;
   ptr->typeTag = type;
   ptr->next = tbl;
   ptr->numArgs = numArgs;
+  if (numArgs > 0) {
+    va_list argptr;
+    int type = TBL_ERROR;
+    struct _argType *head = NULL;
+    struct _argType *tail = NULL;
+
+    va_start(argptr, numArgs);
+    while (numArgs--) {
+      type = va_arg(argptr, int);
+      if (!head) {
+        tail = (struct _argType *)malloc(sizeof(struct _argType));
+        tail->typeTag = type;
+        tail->next = NULL;
+        if (!tail) {
+          fprintf(stderr, "Unable to malloc ptr for argType struct\n");
+          return NULL;
+        }
+        head = tail;
+      } else {
+        tail->next = (struct _argType *)malloc(sizeof(struct _argType));
+        tail->next->typeTag = type;
+        tail->next->next = NULL;
+        if (!tail) {
+          fprintf(stderr, "Unable to malloc ptr for argType struct\n");
+          return NULL;
+        }
+        type = TBL_ERROR;
+        tail = tail->next;
+      }
+    }
+    ptr->argType = head;
+    va_end(argptr);
+  } else
+    ptr->argType = NULL;
   return ptr;
 }
 int validateExprType(Table tbl, int typeTag, int exprType) {
@@ -237,10 +272,35 @@ int validateAST(Table tbl, Stm stm) {
       return 0;
     }
     Arg head = stm->function.args;
+    struct _argType *headArg = entry->argType;
     int counter = 0;
     while (head) {
+      if (!headArg) {
+        fprintf(stderr,
+                "Number of arguments given doesn't correspond to "
+                "function signature\n Number of arguments passed:%d\n "
+                "Number of "
+                "arguments in function signature:%d\n",
+                counter, entry->numArgs);
+        return 0;
+      }
       counter++;
+      if (checkExprType(tbl, head->arg) != headArg->typeTag) {
+        fprintf(stderr, "Passed argument of wrong type to function %s\n",
+                stm->function.ident);
+        return 0;
+      }
+      headArg = headArg->next;
       head = head->nextArg;
+    }
+    if (headArg && !head) {
+      fprintf(stderr,
+              "Number of arguments given doesn't correspond to "
+              "function signature\n Number of arguments passed:%d\n "
+              "Number of "
+              "arguments in function signature:%d\n",
+              counter, entry->numArgs);
+      return 0;
     }
 
     if (counter != entry->numArgs) {

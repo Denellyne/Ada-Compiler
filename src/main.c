@@ -25,15 +25,27 @@
 int main(int argc, char *argv[]) {
   Prog prog = NULL;
   Table tbl = NULL;
-  tbl = addEntry(tbl, "Put_Line", TBL_FUNCTION, 1);
-  tbl = addEntry(tbl, "Put_Num", TBL_FUNCTION, 1);
-  tbl = addEntry(tbl, "Get_Line", TBL_FUNCTION, 2);
+  tbl = addEntry(tbl, "Put_Line", TBL_FUNCTION, 1, TBL_STRING);
+  if (!tbl) {
+    fprintf(stderr, "Unable to add static function to table\n");
+    return EXIT_FAILURE;
+  }
+  tbl = addEntry(tbl, "Put_Num", TBL_FUNCTION, 1, TBL_INT);
+  if (!tbl) {
+    fprintf(stderr, "Unable to add static function to table\n");
+    return EXIT_FAILURE;
+  }
+  tbl = addEntry(tbl, "Get_Line", TBL_FUNCTION, 2, TBL_STRING, TBL_INT);
+  if (!tbl) {
+    fprintf(stderr, "Unable to add static function to table\n");
+    return EXIT_FAILURE;
+  }
   freopen(argv[1], "r", stdin);
   int res = yyparse(&prog);
   if (res != 0)
     return EXIT_FAILURE;
 
-  if (!prog || !(prog->varDec) || !(prog->statements))
+  if (!prog)
     return EXIT_FAILURE;
 
   tbl = addVariableDeclarations(tbl, prog->varDec);

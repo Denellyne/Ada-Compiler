@@ -72,13 +72,18 @@ void yyerror (struct _prog** prog,char const *);
 %token  TOK_OP_MINUS
 %token  TOK_OP_MULT
 %token TOK_OP_DIV
+%token TOK_POW
 
 
 /* Precedences*/
 
-%left TOK_OP_ADD TOK_OP_MINUS TOK_NOT TOK_AND TOK_OR
 %left TOK_OP_MULT TOK_OP_DIV TOK_POW
-%left TOK_XOR TOK_NOTEQ TOK_EQ TOK_GREATER TOK_LESS TOK_GREATEREQ TOK_LESSEQ 
+%left    TOK_OR
+%left  TOK_XOR  
+%left TOK_AND
+%left  TOK_NOTEQ TOK_EQ TOK_GREATER TOK_LESS TOK_GREATEREQ TOK_LESSEQ 
+%left TOK_OP_ADD TOK_OP_MINUS
+%left TOK_NOT
 %left TOK_LP TOK_RP
 %left TOK_END_STATEMENT
 
@@ -158,7 +163,7 @@ expr : term {$$ =$1;}
      | expr TOK_EQ expr {$$ = mkBinOp($1,EQ,$3);}
      | TOK_OP_ADD expr {$$ = mkUnaryOp($2,PLUS);}
      | TOK_OP_MINUS expr {$$ = mkUnaryOp($2,MINUS);}
-     | TOK_NOT TOK_LP expr TOK_RP {$$ = mkUnaryOp($3,NOT);}
+     | TOK_NOT expr {$$ = mkUnaryOp($2,NOT);}
      ;
 
 term : TOK_NUM {$$ = mkNum($1);}

@@ -3,9 +3,9 @@ procedure Main is
   X : Boolean := True;
   Z : Boolean := False;
 begin
-  if not (V < 3) and not (not (X)) then
+  if not (V < 3) or (not (V = 6 and V > 10) and not (not (X))) and False then
     V := 15;
-    Put_Num (V);
+    Put_Line ("15");
   else
     Put_Line ("SIGMA\n");
   end if;

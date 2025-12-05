@@ -22,11 +22,18 @@ int emitUnary(Opcode opc, char *arg1);
 int emit3(Opcode opc, char *arg1, char *arg2, char *arg3);
 int emitMovel(char *dest, int num);
 int emitOp(op op, char *dest, char *src1, char *src2, int val);
-int emitCond(op op, char *src1, char *src2, char *label1, char *label2);
+int emitCond(op op, char *src1, char *src2, char *label1, char *label2,
+             int val);
 int emitLabel(char *label);
 int emitJump(char *label);
 int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                    stringLiterals **strs);
+int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                      stringLiterals **strs);
+int emitCompoundWhileAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                         stringLiterals **strs, int neg);
+int emitCompoundWhileOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                        stringLiterals **strs, int neg);
 int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                       stringLiterals **strs, int neg);
 int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
@@ -237,12 +244,31 @@ int convertOp(const op ope, const int immediate) {
   case OR:
   case NOT:
   case XOR:
+    return ope;
   case EQ:
+    if (immediate)
+      return EQUALSI;
+    return EQUALS;
   case NEQ:
+    if (immediate)
+      return NOTEQUALSI;
+    return NOTEQUALS;
   case LT:
+    if (immediate)
+      return LESSERI;
+    return LESSEREQ;
   case GT:
+    if (immediate)
+      return GREATERI;
+    return GREATER;
   case LE:
+    if (immediate)
+      return LESSEREQI;
+    return LESSEREQ;
   case GE:
+    if (immediate)
+      return GREATEREQI;
+    return GREATEREQ;
     return ope;
     break;
   }
@@ -308,8 +334,11 @@ int emitJump(char *label) {
   return 1;
 }
 
-int emitCond(op op, char *src1, char *src2, char *label1, char *label2) {
-  instruction instr = {COND, src1, src2, label1, label2, 0, op};
+int emitCond(op op, char *src1, char *src2, char *label1, char *label2,
+             int val) {
+  Opcode opConverted = convertOp(op, src2 == NULL);
+
+  instruction instr = {opConverted, src1, src2, label1, label2, val, 0};
   instrList *newNode = malloc(sizeof(instrList));
   if (!newNode)
     return 0;
@@ -490,152 +519,31 @@ Exp applyNotToExpr(Exp exp, int *neg) {
     }
   }
   if (exp->tag == UNARYOP && exp->unaryop.op == NOT) {
-
     *neg = !(*neg);
     return applyNotToExpr(exp->unaryop.exp, neg);
   }
 
   return exp;
 }
-int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
-                   stringLiterals **strs) {
-  if (!exp)
-    return 1;
+int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                      stringLiterals **strs) {
   int neg = 0;
   if (exp->tag == UNARYOP && exp->unaryop.op == NOT)
     exp = applyNotToExpr(exp->unaryop.exp, &neg);
 
   if (exp->tag == BINOP && exp->binop.op == AND)
-    return emitCompoundIfAnd(exp, labelTrue, labelFalse, vars, strs, neg);
-  return emitCompoundIfOr(exp, labelTrue, labelFalse, vars, strs, neg);
-}
-
-int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
-                      stringLiterals **strs, int neg) {
-  char *id = NULL;
-  int ret = 1;
-  int temp = 0;
-  if (exp->tag == BINOP) {
-    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
-      exp->binop.left = applyNotToExpr(exp->binop.left, &neg);
-
-    char *labelAndTrue = newLabel();
-    if (exp->binop.left->tag == BOOL) {
-      id = newTemp();
-      ret = transExp(exp->binop.left, id, vars, strs, neg);
-      temp = 1;
-    } else if (exp->binop.left->tag == ID) {
-      id = getVarTemp(exp->binop.left->id, vars);
-      if (!id) {
-        fprintf(stderr, "Unable to find register for variable %s\n",
-                exp->binop.left->id);
-        return 0;
-      }
-      id = strdup(id);
-      ret = transExp(exp->binop.left, id, vars, strs, neg);
+    return emitCompoundWhileAnd(exp, labelTrue, labelFalse, vars, strs, neg);
+  else if (exp->tag == BINOP && exp->binop.op == OR)
+    return emitCompoundWhileOr(exp, labelTrue, labelFalse, vars, strs, neg);
+  else if (exp->tag == BINOP) {
+    int ret = transExp(exp, NULL, vars, strs, neg);
+    int val = 0;
+    if (ret == -1) {
+      ret = 1;
+      val = exp->binop.right->val;
     }
-    if (id) {
-
-      if (temp) {
-        ret = ret && emitCond(NEQ, id, "zero", labelAndTrue, labelFalse) &&
-              emitLabel(labelAndTrue);
-
-        removeTemp(id);
-        return ret && emitCompoundIf(exp->binop.right, labelTrue, labelFalse,
-                                     vars, strs);
-      } else
-        return ret && emitCond(NEQ, id, "zero", labelAndTrue, labelFalse) &&
-               emitLabel(labelAndTrue) &&
-               emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
-                              strs);
-    }
-
-    return transExp(exp->binop.left, NULL, vars, strs, neg) &&
-           emitCond(exp->binop.left->binop.op, condLeft, condRight,
-                    labelAndTrue, labelFalse) &&
-           emitLabel(labelAndTrue) &&
-           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
-  }
-  if (exp->tag == UNARYOP)
-    exp = applyNotToExpr(exp, &neg);
-
-  if (exp->tag == BOOL) {
-    id = newTemp();
-    ret = transExp(exp, id, vars, strs, neg);
-    temp = 1;
-  } else if (exp->tag == ID) {
-    id = getVarTemp(exp->id, vars);
-    if (!id) {
-      fprintf(stderr, "Unable to find register for variable %s\n", exp->id);
-      return 0;
-    }
-    id = strdup(id);
-    return transExp(exp, id, vars, strs, neg);
-  }
-  if (id) {
-
-    if (temp) {
-      ret = ret && emitCond(NEQ, id, "zero", labelTrue, labelFalse) &&
-            emitLabel(labelTrue);
-
-      removeTemp(id);
-      return ret;
-    } else
-      return ret && emitCond(NEQ, id, "zero", labelTrue, labelFalse) &&
-             emitLabel(labelTrue);
-  }
-
-  return transExp(exp, NULL, vars, strs, neg) &&
-         emitCond(exp->binop.op, condLeft, condRight, labelTrue, labelFalse) &&
-         emitLabel(labelTrue);
-}
-int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
-                     stringLiterals **strs, int neg) {
-  char *id = NULL;
-  int ret = 1;
-  int temp = 0;
-  if (exp->tag == BINOP && exp->binop.op == OR) {
-    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
-      exp->binop.left = applyNotToExpr(exp->binop.left, &neg);
-
-    if (exp->binop.left->tag == BOOL) {
-      id = newTemp();
-      ret = transExp(exp->binop.left, id, vars, strs, neg);
-      temp = 1;
-    } else if (exp->binop.left->tag == ID) {
-      id = getVarTemp(exp->binop.left->id, vars);
-      if (id == NULL) {
-        fprintf(stderr, "Unable to find register for variable %s\n",
-                exp->binop.left->id);
-        return 0;
-      }
-      id = strdup(id);
-      ret = transExp(exp->binop.left, id, vars, strs, neg);
-    }
-    if (id) {
-      if (temp) {
-        ret = ret && emitCond(NEQ, id, "zero", labelTrue, labelFalse);
-
-        removeTemp(id);
-        return ret && emitCompoundIf(exp->binop.right, labelTrue, labelFalse,
-                                     vars, strs);
-      } else
-        return ret && emitCond(NEQ, id, "zero", labelTrue, labelFalse) &&
-               emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
-                              strs);
-    }
-
-    return transExp(exp->binop.left, NULL, vars, strs, neg) &&
-           emitCond(exp->binop.left->binop.op, condLeft, condRight, labelTrue,
-                    labelFalse) &&
-           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
-  }
-  if (exp->tag == UNARYOP)
-    exp = applyNotToExpr(exp, &neg);
-  if (exp->tag == BOOL) {
-    id = newTemp();
-    ret = transExp(exp, id, vars, strs, neg);
-    temp = 1;
+    return ret && emitCond(exp->binop.op, condLeft, condRight, labelTrue,
+                           labelFalse, val);
   } else if (exp->tag == ID) {
     char *id = getVarTemp(exp->id, vars);
     if (id == NULL) {
@@ -643,23 +551,300 @@ int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
       return 0;
     }
     id = strdup(id);
-    ret = transExp(exp, id, vars, strs, neg);
+    return transExp(exp, id, vars, strs, neg) &&
+           emitCond(NEQ, id, "zero", labelFalse, labelTrue, 0);
+  } else if (exp->tag == BOOL) {
+    char *temp = newTemp();
+    int ret = transExp(exp, temp, vars, strs, neg) &&
+              emitCond(NEQ, temp, "zero", labelFalse, labelTrue, 0);
+    removeTemp(temp);
+    return ret;
   }
-  if (id) {
-    if (temp) {
-      ret = ret && emitCond(NEQ, id, "zero", labelTrue, labelFalse) &&
-            emitLabel(labelTrue);
+  return 0;
+}
+int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                   stringLiterals **strs) {
+  int neg = 0;
+  if (exp->tag == UNARYOP && exp->unaryop.op == NOT)
+    exp = applyNotToExpr(exp->unaryop.exp, &neg);
 
+  if (exp->tag == BINOP && exp->binop.op == AND)
+    return emitCompoundIfAnd(exp, labelTrue, labelFalse, vars, strs, neg);
+  else if (exp->tag == BINOP && exp->binop.op == OR)
+    return emitCompoundIfOr(exp, labelTrue, labelFalse, vars, strs, neg);
+  else if (exp->tag == BINOP) {
+    int ret = transExp(exp, NULL, vars, strs, neg);
+    int val = 0;
+    if (ret == -1) {
+      ret = 1;
+      val = exp->binop.right->val;
+    }
+    return ret && emitCond(exp->binop.op, condLeft, condRight, labelTrue,
+                           labelFalse, val);
+  } else if (exp->tag == ID) {
+    char *id = getVarTemp(exp->id, vars);
+    if (id == NULL) {
+      fprintf(stderr, "Unable to find register for variable %s\n", exp->id);
+      return 0;
+    }
+    id = strdup(id);
+    return transExp(exp, id, vars, strs, neg) &&
+           emitCond(NEQ, id, "zero", labelTrue, labelFalse, 0);
+  } else if (exp->tag == BOOL) {
+    char *temp = newTemp();
+    int ret = transExp(exp, temp, vars, strs, neg) &&
+              emitCond(NEQ, temp, "zero", labelTrue, labelFalse, 0);
+    removeTemp(temp);
+    return ret;
+  }
+  return 0;
+}
+int emitCompoundWhileAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                         stringLiterals **strs, int neg) {
+  if (exp->tag == BINOP && exp->binop.op == AND) {
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
+      exp->binop.left = applyNotToExpr(exp->binop.left, &neg);
+    if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
+      return emitCompoundWhileAnd(exp->binop.left, labelTrue, labelFalse, vars,
+                                  strs, neg) &&
+             emitCompoundWhile(exp->binop.right, labelTrue, labelFalse, vars,
+                               strs);
+    else if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == OR)
+      return emitCompoundWhileOr(exp->binop.left, labelTrue, labelFalse, vars,
+                                 strs, neg) &&
+             emitCompoundWhile(exp->binop.right, labelTrue, labelFalse, vars,
+                               strs);
+
+    int ret = transExp(exp->binop.left, NULL, vars, strs, neg);
+    int val = 0;
+    if (ret == -1) {
+      ret = 1;
+      val = exp->binop.left->binop.right->val;
+    }
+    ret =
+        ret &&
+        emitCond(exp->binop.left->binop.op, condLeft, condRight, labelFalse,
+                 labelTrue, val) &&
+        emitCompoundWhile(exp->binop.right, labelTrue, labelFalse, vars, strs);
+    return ret;
+  }
+  return 0;
+}
+int emitCompoundWhileOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                        stringLiterals **strs, int neg) {
+  if (exp->tag == BINOP && exp->binop.op == OR) {
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
+      exp->binop.left = applyNotToExpr(exp->binop.left, &neg);
+    if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
+      return emitCompoundWhileAnd(exp->binop.left, labelTrue, labelFalse, vars,
+                                  strs, neg) &&
+             emitCompoundWhile(exp->binop.right, labelTrue, labelFalse, vars,
+                               strs);
+    else if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == OR)
+      return emitCompoundWhileOr(exp->binop.left, labelTrue, labelFalse, vars,
+                                 strs, neg) &&
+             emitCompoundWhile(exp->binop.right, labelTrue, labelFalse, vars,
+                               strs);
+
+    int ret = transExp(exp->binop.left, NULL, vars, strs, neg);
+    int val = 0;
+    if (ret == -1) {
+      ret = 1;
+      val = exp->binop.left->binop.right->val;
+    }
+    return ret &&
+           emitCond(exp->binop.left->binop.op, condLeft, condRight, labelFalse,
+                    labelTrue, val) &&
+           emitCompoundWhile(exp->binop.right, labelTrue, labelFalse, vars,
+                             strs);
+  }
+  return 0;
+}
+
+int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                      stringLiterals **strs, int neg) {
+  if (exp->tag == BINOP && exp->binop.op == AND) {
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
+      exp->binop.left = applyNotToExpr(exp->binop.left, &neg);
+    if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
+      return emitCompoundIfAnd(exp->binop.left, labelTrue, labelFalse, vars,
+                               strs, neg) &&
+             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
+                            strs);
+    else if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == OR)
+      return emitCompoundIfOr(exp->binop.left, labelTrue, labelFalse, vars,
+                              strs, neg) &&
+             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
+                            strs);
+
+    char *labelAndTrue = newLabel();
+    char *id = NULL;
+    if (exp->binop.left->tag == BOOL) {
+      id = newTemp();
+      int ret = transExp(exp->binop.left, id, vars, strs, neg) &&
+                emitCond(NEQ, id, "zero", labelAndTrue, labelFalse, 0) &&
+                emitLabel(labelAndTrue);
       removeTemp(id);
-      return ret;
-    } else
-      return ret && emitCond(NEQ, id, "zero", labelTrue, labelFalse) &&
-             emitLabel(labelTrue);
+      return ret && emitCompoundIf(exp->binop.right, labelTrue, labelFalse,
+                                   vars, strs);
+    } else if (exp->binop.left->tag == ID) {
+      char *id = getVarTemp(exp->binop.left->id, vars);
+      if (!id) {
+        fprintf(stderr, "Unable to find register for variable %s\n",
+                exp->binop.left->id);
+        return 0;
+      }
+      id = strdup(id);
+      return transExp(exp->binop.left, id, vars, strs, neg) &&
+             emitCond(NEQ, id, "zero", labelAndTrue, labelFalse, 0) &&
+             emitLabel(labelAndTrue) &&
+             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
+                            strs);
+    }
+    int ret = transExp(exp->binop.left, NULL, vars, strs, neg);
+    int val = 0;
+    if (ret == -1) {
+      ret = 1;
+      val = exp->binop.left->binop.right->val;
+    }
+    ret = ret &&
+          emitCond(exp->binop.left->binop.op, condLeft, condRight, labelAndTrue,
+                   labelFalse, val) &&
+          emitLabel(labelAndTrue) &&
+          emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
+    return ret;
+  }
+  if (exp->tag == UNARYOP && exp->unaryop.op == NOT)
+    exp = applyNotToExpr(exp, &neg);
+
+  if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
+    return emitCompoundIfAnd(exp->binop.left, labelTrue, labelFalse, vars, strs,
+                             neg) &&
+           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
+  else if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == OR)
+    return emitCompoundIfOr(exp->binop.left, labelTrue, labelFalse, vars, strs,
+                            neg) &&
+           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
+
+  // return transExp(exp, NULL, vars, strs, neg) &&
+  //        emitCond(exp->binop.op, condLeft, condRight, labelTrue, labelFalse)
+  //        && emitLabel(labelTrue);
+
+  if (exp->tag == BOOL) {
+    char *temp = newTemp();
+    int ret = transExp(exp, temp, vars, strs, neg) &&
+              emitCond(NEQ, temp, "zero", labelTrue, labelFalse, 0);
+    removeTemp(temp);
+    return ret;
+  }
+  if (exp->tag == ID) {
+    char *id = getVarTemp(exp->id, vars);
+    if (!id) {
+      fprintf(stderr, "Unable to find register for variable %s\n", exp->id);
+      return 0;
+    }
+    id = strdup(id);
+    return transExp(exp, id, vars, strs, neg) &&
+           emitCond(NEQ, id, "zero", labelTrue, labelFalse, 0);
+  }
+  int ret = transExp(exp, NULL, vars, strs, neg);
+  int val = 0;
+  if (ret == -1) {
+    ret = 1;
+    val = exp->binop.right->val;
   }
 
-  return transExp(exp, NULL, vars, strs, neg) &&
-         emitCond(exp->binop.op, condLeft, condRight, labelTrue, labelFalse) &&
-         emitLabel(labelTrue);
+  return ret && emitCond(exp->binop.op, condLeft, condRight, labelTrue,
+                         labelFalse, val);
+}
+int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
+                     stringLiterals **strs, int neg) {
+  if (exp->tag == BINOP && exp->binop.op == OR) {
+    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT)
+      exp->binop.left = applyNotToExpr(exp->binop.left, &neg);
+    if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
+      return emitCompoundIfAnd(exp->binop.left, labelTrue, labelFalse, vars,
+                               strs, neg) &&
+             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
+                            strs);
+    else if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == OR)
+      return emitCompoundIfOr(exp->binop.left, labelTrue, labelFalse, vars,
+                              strs, neg) &&
+             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
+                            strs);
+
+    if (exp->binop.left->tag == BOOL) {
+      char *temp = newTemp();
+      int ret = transExp(exp->binop.left, temp, vars, strs, neg) &&
+                emitCond(EQ, temp, "zero", labelFalse, labelTrue, 0);
+      removeTemp(temp);
+      return ret && emitCompoundIf(exp->binop.right, labelTrue, labelFalse,
+                                   vars, strs);
+    }
+
+    if (exp->binop.left->tag == ID) {
+      char *id = getVarTemp(exp->binop.left->id, vars);
+      if (id == NULL) {
+        fprintf(stderr, "Unable to find register for variable %s\n",
+                exp->binop.left->id);
+        return 0;
+      }
+      id = strdup(id);
+      return transExp(exp->binop.left, id, vars, strs, neg) &&
+             emitCond(EQ, id, "zero", labelFalse, labelTrue, 9) &&
+             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars,
+                            strs);
+    }
+    int ret = transExp(exp->binop.left, NULL, vars, strs, neg);
+    int val = 0;
+    if (ret == -1) {
+      ret = 1;
+      val = exp->binop.left->binop.right->val;
+    }
+    return ret &&
+           emitCond(exp->binop.left->binop.op, condLeft, condRight, labelTrue,
+                    labelFalse, val) &&
+           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
+  }
+  if (exp->tag == UNARYOP && exp->unaryop.op == NOT)
+    exp = applyNotToExpr(exp, &neg);
+  if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
+    return emitCompoundIfAnd(exp->binop.left, labelTrue, labelFalse, vars, strs,
+                             neg) &&
+           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
+  else if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == OR)
+    return emitCompoundIfOr(exp->binop.left, labelTrue, labelFalse, vars, strs,
+                            neg) &&
+           emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs);
+  // return transExp(exp, NULL, vars, strs, neg) &&
+  //        emitCond(exp->binop.op, condLeft, condRight, labelTrue, labelFalse)
+  //        && emitLabel(labelTrue);
+  if (exp->tag == BOOL) {
+    char *temp = newTemp();
+    int ret = transExp(exp, temp, vars, strs, neg) &&
+              emitCond(EQ, temp, "zero", labelFalse, labelTrue, 0);
+    removeTemp(temp);
+    return ret;
+  }
+  if (exp->tag == ID) {
+    char *id = getVarTemp(exp->id, vars);
+    if (id == NULL) {
+      fprintf(stderr, "Unable to find register for variable %s\n", exp->id);
+      return 0;
+    }
+    id = strdup(id);
+    return transExp(exp, id, vars, strs, neg) &&
+           emitCond(EQ, id, "zero", labelFalse, labelTrue, 0);
+  }
+
+  int ret = transExp(exp, NULL, vars, strs, neg);
+  int val = 0;
+  if (ret == -1) {
+    ret = 1;
+    val = exp->binop.right->val;
+  }
+  return ret && emitCond(exp->binop.op, condLeft, condRight, labelTrue,
+                         labelFalse, val);
 }
 
 int transStm(Stm stm, vars *vars, stringLiterals **strs) {
@@ -714,10 +899,15 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
     if (stm->ifStmt.cond->binop.op == AND || stm->ifStmt.cond->binop.op == OR) {
 
       int ret =
-          emitCompoundIf(stm->ifStmt.cond, labelTrue, labelFalse, vars, strs) &&
-          transStm(stm->ifStmt.thenBranch, vars, strs) && emitJump(labelEnd) &&
-
-          emitLabel(labelFalse);
+          emitCompoundIf(stm->ifStmt.cond, labelTrue, labelFalse, vars, strs);
+      if (!ret) {
+        fprintf(stderr,
+                "Unable to generate branches for the given condition\n");
+        return 0;
+      }
+      ret = ret && emitLabel(labelTrue) &&
+            transStm(stm->ifStmt.thenBranch, vars, strs) &&
+            emitJump(labelEnd) && emitLabel(labelFalse);
       if (stm->ifStmt.elseBranch != NULL)
         ret = ret && transStm(stm->ifStmt.elseBranch, vars, strs);
 
@@ -738,7 +928,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
       }
       id = strdup(id);
       int ret = transExp(stm->ifStmt.cond, id, vars, strs, neg) &&
-                emitCond(NEQ, id, "zero", labelTrue, labelFalse) &&
+                emitCond(NEQ, id, "zero", labelTrue, labelFalse, 0) &&
                 emitLabel(labelTrue) &&
                 transStm(stm->ifStmt.thenBranch, vars, strs) &&
                 emitJump(labelEnd) && emitLabel(labelFalse);
@@ -752,7 +942,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
     if (stm->ifStmt.cond->tag == BOOL) {
       temp = newTemp();
       int ret = transExp(stm->ifStmt.cond, temp, vars, strs, neg) &&
-                emitCond(NEQ, temp, "zero", labelTrue, labelFalse) &&
+                emitCond(NEQ, temp, "zero", labelTrue, labelFalse, 0) &&
                 emitLabel(labelTrue) &&
                 transStm(stm->ifStmt.thenBranch, vars, strs) &&
                 emitJump(labelEnd) && emitLabel(labelFalse);
@@ -768,7 +958,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
 
     int ret = transExp(stm->ifStmt.cond, temp, vars, strs, neg) &&
               emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight,
-                       labelTrue, labelFalse) &&
+                       labelTrue, labelFalse, 0) &&
 
               emitLabel(labelTrue) &&
               transStm(stm->ifStmt.thenBranch, vars, strs) &&
@@ -786,22 +976,68 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
   }
   case WHILE: {
     char *temp = NULL;
-    char *label_start = newLabel();
-    char *label_body = newLabel();
+    char *labelFalse = newLabel();
     char *labelEnd = newLabel();
+    int neg = 0;
+    emitLabel(labelFalse);
 
-    return emitLabel(label_start) &&
-           transExp(stm->whileStmt.cond, temp, vars, strs, 0) &&
-           emitCond(stm->ifStmt.cond->binop.op, condLeft, condRight, label_body,
-                    labelEnd) &&
+    if (stm->whileStmt.cond->tag == UNARYOP &&
+        stm->whileStmt.cond->unaryop.op == NOT)
+      stm->whileStmt.cond = applyNotToExpr(stm->whileStmt.cond, &neg);
 
-           emitLabel(label_body) && transStm(stm->whileStmt.body, vars, strs) &&
-           emitJump(label_start) &&
+    if (stm->whileStmt.cond->binop.op == AND ||
+        stm->whileStmt.cond->binop.op == OR) {
+
+      int ret = emitCompoundWhile(stm->whileStmt.cond, labelFalse, labelEnd,
+                                  vars, strs);
+      if (!ret) {
+        fprintf(stderr,
+                "Unable to generate branches for the given condition\n");
+        return 0;
+      }
+      return ret && transStm(stm->whileStmt.body, vars, strs) &&
+             emitJump(labelFalse) && emitLabel(labelEnd);
+    }
+    if (stm->whileStmt.cond->tag == ID) {
+      char *id = getVarTemp(stm->whileStmt.cond->id, vars);
+      if (id == NULL) {
+        fprintf(stderr, "Unable to find register for variable %s\n",
+                stm->whileStmt.cond->id);
+        return 0;
+      }
+      id = strdup(id);
+      int ret = transExp(stm->whileStmt.cond, id, vars, strs, neg) &&
+                emitCond(NEQ, id, "zero", labelFalse, labelEnd, 0) &&
+                transStm(stm->whileStmt.body, vars, strs) &&
+                emitJump(labelFalse);
+
+      return ret && emitJump(labelEnd) &&
+
+             emitLabel(labelEnd);
+    }
+    if (stm->whileStmt.cond->tag == BOOL) {
+      temp = newTemp();
+      int ret = transExp(stm->whileStmt.cond, temp, vars, strs, neg) &&
+                emitCond(NEQ, temp, "zero", labelFalse, labelEnd, 0) &&
+                transStm(stm->whileStmt.body, vars, strs) &&
+                emitJump(labelFalse) && emitLabel(labelFalse);
+      removeTemp(temp);
+
+      return ret && emitJump(labelEnd) &&
+
+             emitLabel(labelEnd);
+    }
+
+    int ret = transExp(stm->whileStmt.cond, temp, vars, strs, neg) &&
+              emitCond(stm->whileStmt.cond->binop.op, condLeft, condRight,
+                       labelFalse, labelEnd, 0) &&
+
+              transStm(stm->whileStmt.body, vars, strs) && emitJump(labelFalse);
+
+    return ret && emitJump(labelEnd) &&
 
            emitLabel(labelEnd);
-
-    break;
-  }
+  } break;
   case INCR: {
 
     char *temp1 = newTemp();
@@ -928,6 +1164,9 @@ void printInstructions(instrList *list) {
 
       break;
     }
+    case NEG:
+      printf("NOT %s\n", current->instr.arg1);
+      break;
     case SUB:
       printf("SUB %s %s %s\n", current->instr.arg1, current->instr.arg2,
              current->instr.arg3);
@@ -1056,6 +1295,54 @@ void printInstructions(instrList *list) {
     case JUMP:
       printf("JUMP %s\n", current->instr.arg1);
       break;
+    case GREATEREQ:
+      printf("COND %s >= %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case LESSEREQ:
+      printf("COND %s <= %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case EQUALS:
+      printf("COND %s == %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case NOTEQUALS:
+      printf("COND %s /= %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case GREATER:
+      printf("COND %s > %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case LESSER:
+      printf("COND %s < %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case GREATEREQI:
+      printf("COND %s >= %d %s %s\n", current->instr.arg1, current->instr.num,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case LESSEREQI:
+      printf("COND %s <= %d %s %s\n", current->instr.arg1, current->instr.num,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case EQUALSI:
+      printf("COND %s == %d %s %s\n", current->instr.arg1, current->instr.num,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case NOTEQUALSI:
+      printf("COND %s /= %d %s %s\n", current->instr.arg1, current->instr.num,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case GREATERI:
+      printf("COND %s > %d %s %s\n", current->instr.arg1, current->instr.num,
+             current->instr.arg3, current->instr.arg4);
+      break;
+    case LESSERI:
+      printf("COND %s < %d %s %s\n", current->instr.arg1, current->instr.num,
+             current->instr.arg3, current->instr.arg4);
+      break;
     case COND: {
       char *opStr;
       switch (current->instr.binop) {
@@ -1090,10 +1377,11 @@ void printInstructions(instrList *list) {
         printf("%d\n", current->instr.binop);
         opStr = "?";
       }
+      opStr = "?";
       printf("COND %s %s %s %s %s\n", current->instr.arg1, opStr,
              current->instr.arg2, current->instr.arg3, current->instr.arg4);
       break;
-    }
+    } break;
     }
     current = current->next;
   }

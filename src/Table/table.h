@@ -14,6 +14,10 @@ struct _entry {
     TBL_ERROR
   } typeTag;
   unsigned numArgs;
+  struct _argType {
+    int typeTag;
+    struct _argType *next;
+  } *argType;
   struct _entry *next;
 };
 
@@ -23,7 +27,7 @@ typedef Entry *Table;
 
 // extern struct type lookup_value(Table, char *);
 Entry *lookup(Table, char *);
-Table addEntry(Table, char *, int type, unsigned numArgs);
+Table addEntry(Table, char *, int type, unsigned numArgs, ...);
 // extern void update_value(Entry *, struct type);
 Table addVariableDeclarations(Table, Stm);
 void printTable(Table);

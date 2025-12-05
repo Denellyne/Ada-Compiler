@@ -194,6 +194,64 @@ int printInstr(FILE *file, instrList *instrs) {
                   current->instr.num) < 0)
         return 0;
       break;
+    case EQUALSI:
+      if (fprintf(file, "bne $%s, $%d, %s\n", current->instr.arg1,
+                  current->instr.num, current->instr.arg4) < 0)
+        return 0;
+      break;
+    case NOTEQUALSI:
+      if (fprintf(file, "beq $%s, $%d, %s\n", current->instr.arg1,
+                  current->instr.num, current->instr.arg3) < 0)
+        return 0;
+      break;
+    case LESSERI:
+      if (fprintf(file, "bge $%s, $%d, %s\n", current->instr.arg1,
+                  current->instr.num, current->instr.arg4) < 0)
+        return 0;
+      break;
+    case GREATERI:
+      if (fprintf(file, "ble $%s, $%d, %s\n", current->instr.arg1,
+                  current->instr.num, current->instr.arg4) < 0)
+        return 0;
+      break;
+    case LESSEREQI:
+      if (fprintf(file, "bgt $%s, $%d, %s\n", current->instr.arg1,
+                  current->instr.num, current->instr.arg4) < 0)
+        return 0;
+      break;
+    case GREATEREQI:
+      if (fprintf(file, "blt $%s, $%d, %s\n", current->instr.arg1,
+                  current->instr.num, current->instr.arg4) < 0)
+        return 0;
+    case EQUALS:
+      if (fprintf(file, "bne $%s, $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg4) < 0)
+        return 0;
+      break;
+    case NOTEQUALS:
+      if (fprintf(file, "beq $%s, $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
+        return 0;
+      break;
+    case LESSER:
+      if (fprintf(file, "bge $%s, $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg4) < 0)
+        return 0;
+      break;
+    case GREATER:
+      if (fprintf(file, "ble $%s, $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg4) < 0)
+        return 0;
+      break;
+    case LESSEREQ:
+      if (fprintf(file, "bgt $%s, $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg4) < 0)
+        return 0;
+      break;
+    case GREATEREQ:
+      if (fprintf(file, "blt $%s, $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg4) < 0)
+        return 0;
     case OP: {
       char *op_str;
       switch (current->instr.binop) {

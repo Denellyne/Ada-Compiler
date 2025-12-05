@@ -24,6 +24,18 @@ typedef enum {
   POWERI,
   UNARY,
   NEG,
+  GREATEREQ,
+  LESSEREQ,
+  EQUALS,
+  NOTEQUALS,
+  GREATER,
+  LESSER,
+  GREATEREQI,
+  LESSEREQI,
+  EQUALSI,
+  NOTEQUALSI,
+  GREATERI,
+  LESSERI,
 } Opcode;
 struct _variables {
   char *id;
