@@ -3,6 +3,7 @@
 #include "../IR/ir.h"
 #include "../Table/table.h"
 
-int generateASM(Table tbl, Stm varDecl, instrList *ir, stringLiterals *strs);
+int generateASM(char *fileName, Table tbl, Stm varDecl, instrList *ir,
+                stringLiterals *strs);
 
 #endif

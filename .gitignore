@@ -5,3 +5,4 @@ bin/
 *.bin
 */mars.jar
 tests/other
+*.adb

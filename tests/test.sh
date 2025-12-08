@@ -2,7 +2,7 @@
 
 testASM() {
   if [[ -e mars.jar && -e "$1.txt" ]]; then
-    java -jar ./mars.jar nc sm out.bin >out.txt
+    java -jar ./mars.jar nc sm "$1.bin" >out.txt
     if cmp --silent -- "$1.txt" "out.txt"; then
       return 0
     else
@@ -42,7 +42,6 @@ done
 if [ $build = 1 ]; then
   compile
 fi
-
 bash ./gen.sh
 
 for filename in ./*.adb; do
@@ -65,4 +64,4 @@ echo -e -n Tests:$tests
 echo -e -n " |\033[0;32m Success:$successes\033[0m |"
 echo -e "\033[0;31m Fail:$fails\033[0m"
 
-rm out.bin out.txt *.adb *.txt >/dev/null 2>&1
+rm -f *.bin *.txt *.out >/dev/null 2>&1

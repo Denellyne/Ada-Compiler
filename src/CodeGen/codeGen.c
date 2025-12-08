@@ -15,8 +15,16 @@ int printPutNumFunction(FILE *file);
 int printCallFunction(FILE *file, char *functionName);
 int printStaticString(FILE *file, stringLiterals *strs);
 
-int generateASM(Table tbl, Stm varDecl, instrList *ir, stringLiterals *strs) {
-  FILE *out = fopen("out.bin", "w");
+int generateASM(char *fileName, Table tbl, Stm varDecl, instrList *ir,
+                stringLiterals *strs) {
+  char *outputFile;
+  asprintf(&outputFile, "%s.bin", fileName);
+  if (!outputFile) {
+    fprintf(stderr, "Unable to generate file name for output\n");
+    return 0;
+  }
+
+  FILE *out = fopen(outputFile, "w");
   if (!out) {
     fprintf(stderr, "File pointer to output binary is null\n");
     return 0;

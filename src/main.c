@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
     return EXIT_FAILURE;
   }
   printInstructions(instrs);
-  if (!generateASM(tbl, prog->varDec, instrs, strs)) {
+  if (!generateASM(argv[1], tbl, prog->varDec, instrs, strs)) {
     freeInstructions(&instrs);
     freeStrings(&strs);
     fprintf(stderr,
