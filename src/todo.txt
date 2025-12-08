@@ -1,6 +1,0 @@
-while??
-negate a number than its negated forever
-
-!os comparadores é so INT
-get_line
-bitwise
