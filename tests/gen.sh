@@ -1,6 +1,6 @@
 #!/bin/sh
 
-rm *.adb
+# rm *.adb
 
 create() {
   name="$1"
