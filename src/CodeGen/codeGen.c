@@ -235,7 +235,7 @@ int printInstr(FILE *file, instrList *instrs) {
         return 0;
       break;
     case DIVIDEF:
-      if (fprintf(file, "div.f $%s,$%s, $%s\n", current->instr.arg1,
+      if (fprintf(file, "div.d $%s,$%s, $%s\n", current->instr.arg1,
                   current->instr.arg2, current->instr.arg3) < 0)
         return 0;
       break;
@@ -495,9 +495,9 @@ powNum_0:\n\
          li $v0,1\n\
        	 j pow_ret\n\
 powFloat:\n\
-	 beq $a1,$zero,powFloat_0\n\
-         beq $a1,1,pow_ret\n\
          mov.d $f30,$f12\n\
+	       beq $a1,$zero,powFloat_0\n\
+         beq $a1,1,pow_ret\n\
          move $t0,$a1\n\
 powFloat_Start:\n\
          mul.d $f30,$f30,$f12\n\
@@ -506,7 +506,7 @@ powFloat_Start:\n\
          j powFloat_Start\n\
 powFloat_0:\n\
 \n\
-         mtc1.d $zero,$f30\n\
+         ldc1 $f30,constFloat0\n\
        	 j pow_ret\n\
 pow_ret:\n\
 \n\

@@ -13,6 +13,33 @@ create() {
   printf '%s' "$in" >"$name.adb.in"
 }
 
+create floatSubTest 'procedure Main is
+  X : Float := 5.0;
+  Y : Float := 2.0;
+begin
+  Put_Num (X - Y);
+end Main;' '3.0'
+
+create floatMultTest 'procedure Main is
+  X : Float := 2.0;
+  Y : Float := 3.0;
+begin
+  Put_Num (X + Y * 2.0);
+end Main;' '8.0'
+
+create floatDivTest 'procedure Main is
+  X : Float := 7.5;
+  Y : Float := 2.5;
+begin
+  Put_Num (X / Y);
+end Main;' '3.0'
+create floatAddTest 'procedure Main is
+  X : Float := 1.0;
+  Y : Float := 2.5;
+  Z : Float := 3.5;
+begin
+  Put_Num (X + Y + Z);
+end Main;' '7.0'
 create floatPowTest 'procedure Main is
   V : Float := 2.0;
 begin

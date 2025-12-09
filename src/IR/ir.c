@@ -57,6 +57,36 @@ int transBinOp(Exp exp, char *dest, vars *, stringLiterals **strs,
                floatLiterals **floats);
 Exp applyNotToExpr(Exp exp, int neg, vars *);
 void freeVariables(vars **variables);
+char *getVarTemp(char *id, vars *vars);
+int checkExprTypeLazy(Exp expr, vars *vars) {
+  switch (expr->tag) {
+  case NUM:
+  case FLOAT:
+  case STRLITERAL:
+  case BOOL:
+    return expr->tag;
+  case ID: {
+    char *id = getVarTemp(expr->id, vars);
+    if (!id) {
+      fprintf(stderr, "Unable to find register binded to variable\n");
+      return -1;
+    }
+    if (id[0] == 'f')
+      return FLOAT;
+    return ID;
+  }
+  case UNARYOP:
+    return checkExprTypeLazy(expr->unaryop.exp, vars);
+  case BINOP: {
+
+    int left = checkExprTypeLazy(expr->binop.left, vars);
+    int right = checkExprTypeLazy(expr->binop.right, vars);
+    if (left == FLOAT || right == FLOAT)
+      return FLOAT;
+    return left;
+  }
+  }
+}
 
 char *getVarTemp(char *id, vars *vars) {
   if (!vars || !id)
@@ -325,6 +355,8 @@ int convertOpF(const op ope) {
     return MULTF;
   case DIV:
     return DIVIDEF;
+  default:
+    return -1;
   }
 
   return -1;
@@ -622,6 +654,7 @@ instrList *generateIR(Prog program, stringLiterals **strs,
   int error = 0;
   stringLiterals *strsLocal = NULL;
   floatLiterals *floatsLocal = NULL;
+  floatsLocal = addFloat(1, floatsLocal);
   strsLocal =
       addString("askInputStr", "\"Enter string (max 64 chars): \"", *strs);
   if (!strsLocal) {
@@ -1329,7 +1362,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
       if (temp[0] == 'f')
         isFloat = 1;
 
-    } else if (isFloat || stm->assign.expr->tag == FLOAT) {
+    } else if (isFloat || checkExprTypeLazy(stm->assign.expr, vars) == FLOAT) {
       temp = newTempFloat();
       removeFloat = 1;
       isFloat = 1;
@@ -1338,7 +1371,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
       remove = 1;
     }
     int ret = transExp(stm->assign.expr, temp, vars, strs, floats);
-    if (stm->assign.expr->tag == FLOAT || isFloat)
+    if (checkExprTypeLazy(stm->assign.expr, vars) == FLOAT || isFloat)
       ret = ret && emit2(MOVEF, id, temp);
     else
       ret = ret && emit2(MOVE, id, temp);
@@ -1533,13 +1566,15 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
       temp = id1;
       if (id1[0] == 'f')
         isFloat = 1;
-    } else if (stm->function.args->arg->tag == FLOAT) {
-      temp = newTempFloat();
-      remove = 1;
-      isFloat = 1;
     } else {
-      temp = newTemp();
-      remove = 1;
+      if (checkExprTypeLazy(stm->function.args->arg, vars) == FLOAT) {
+        temp = newTempFloat();
+        remove = 1;
+        isFloat = 1;
+      } else {
+        temp = newTemp();
+        remove = 1;
+      }
     }
     int ret = transExp(stm->function.args->arg, temp, vars, strs, floats);
 
@@ -1689,6 +1724,8 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
 int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
                floatLiterals **floats) {
   if (dest == NULL) {
+    if (checkExprTypeLazy(exp, vars) == FLOAT)
+      return -1;
 
     condLeft = NULL;
     condRight = NULL;
@@ -1738,8 +1775,9 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
     t1 = strdup(t1);
     if (t1[0] == 'f')
       isFloat = 1;
-  } else if (!t1) {
-    if (exp->binop.left->tag == FLOAT) {
+  } else {
+    if (checkExprTypeLazy(exp->binop.left, vars) == FLOAT ||
+        checkExprTypeLazy(exp->binop.right, vars) == FLOAT) {
       t1 = newTempFloat();
       temp1F = 1;
       isFloat = 1;
@@ -1768,8 +1806,8 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
       isFloat = 1;
   } else if (i == 0)
     return 0;
-  else if (!t2) {
-    if (exp->binop.right->tag == FLOAT) {
+  else {
+    if (checkExprTypeLazy(exp->binop.right, vars) == FLOAT) {
       t2 = newTempFloat();
       temp2F = 1;
       isFloat = 1;
