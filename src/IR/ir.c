@@ -596,6 +596,10 @@ int emitCond(op op, char *src1, char *src2, char *label1, char *label2,
 
 char *newLabel() {
   char *label = malloc(10);
+  if (!label) {
+    fprintf(stderr, "Unable to malloc memory for new label\n");
+    return NULL;
+  }
   sprintf(label, "L%d", labelCount++);
   return label;
 }
@@ -603,6 +607,10 @@ char *newLabel() {
 vars *addNode(char *id, char *temp, vars *vars) {
   if (!vars) {
     vars = (struct _variables *)malloc(sizeof(struct _variables));
+    if (!vars) {
+      fprintf(stderr, "Unable to malloc memory for variables struct\n");
+      return NULL;
+    }
     vars->next = NULL;
     vars->id = strdup(id);
     if (!temp)
@@ -617,6 +625,10 @@ vars *addNode(char *id, char *temp, vars *vars) {
     vars = vars->next;
 
   vars->next = (struct _variables *)malloc(sizeof(struct _variables));
+  if (!vars->next) {
+    fprintf(stderr, "Unable to malloc memory for variables struct\n");
+    return NULL;
+  }
   vars->next->next = NULL;
 
   vars->next->id = strdup(id);
@@ -961,6 +973,8 @@ int emitCompoundWhileAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                                   strs, floats);
 
     char *labelAnd = newLabel();
+    if (!labelAnd)
+      return 0;
     int ret = transExp(exp->binop.left, NULL, vars, strs, floats);
     int val = 0;
     if (ret == -1) {
@@ -1075,6 +1089,8 @@ int emitCompoundIfOrEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                                 strs, neg, floats);
 
     char *labelOr = newLabel();
+    if (!labelOr)
+      return 0;
     if (exp->binop.left->tag == BOOL || exp->binop.left->tag == NUM) {
       char *temp = newTemp();
       int ret = transExp(exp->binop.left, temp, vars, strs, floats) &&
@@ -1157,6 +1173,8 @@ int emitCompoundIfAndEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 
     char *id = NULL;
     char *labelAnd = newLabel();
+    if (!labelAnd)
+      return 0;
     if (exp->binop.left->tag == BOOL || exp->binop.left->tag == NUM) {
       id = newTemp();
       int ret = transExp(exp->binop.left, id, vars, strs, floats) &&
@@ -1251,6 +1269,8 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
     char *labelTrue = newLabel();
     char *labelFalse = newLabel();
     char *labelEnd = newLabel();
+    if (!labelTrue || !labelFalse || !labelEnd)
+      return 0;
     char *trueLTrue = strdup(labelTrue);
     char *trueLFalse = strdup(labelFalse);
     int neg = 0;
@@ -1325,6 +1345,8 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
     char *labelFalse = newLabel();
     char *labelEnd = newLabel();
     char *labelBody = newLabel();
+    if (!labelBody || !labelFalse || !labelEnd)
+      return 0;
     int neg = 0;
     emitLabel(labelFalse);
 
