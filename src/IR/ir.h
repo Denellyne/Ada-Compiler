@@ -38,6 +38,7 @@ typedef enum {
   LESSERI,
   XR,
   XRI,
+  BNEZ = 64,
 } Opcode;
 struct _variables {
   char *id;

@@ -78,8 +78,8 @@ void yyerror (struct _prog** prog,char const *);
 /* Precedences*/
 
 %left    TOK_OR
-%left  TOK_XOR  
 %left TOK_AND
+%left  TOK_XOR  
 %left  TOK_NOTEQ TOK_EQ TOK_GREATER TOK_LESS TOK_GREATEREQ TOK_LESSEQ 
 %left TOK_OP_ADD TOK_OP_MINUS
 %left TOK_NOT
