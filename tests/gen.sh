@@ -1,13 +1,16 @@
 #!/bin/sh
 
-# rm *.adb
+rm *.adb
 
 create() {
   name="$1"
   code="$2"
   out="$3"
+  in="$4"
+
   printf '%s\n' "$code" >"$name.adb"
   printf '%s\n' "$out" >"$name.adb.txt"
+  printf '%s' "$in" >"$name.adb.in"
 }
 
 create ifsmall 'procedure Main is
@@ -82,11 +85,17 @@ begin
 end Main;' '3125'
 
 create print 'procedure Main is
-  str : String := "test";
+  str : String := "test\n";
+  num : Integer := 5;
 begin
   Put_Line ("aaa");
   Put_Line (str);
-end Main;' 'aaatest'
+  Get_Line (str,num);
+  Put_Line (str);
+  Put_Num (num);
+end Main;' 'aaatest
+lindo
+5' 'lindo'
 
 create whilesmall 'procedure Main is
   V : Integer := 10;
@@ -107,3 +116,9 @@ begin
     V := V - 1;
   end loop;
 end Main;' '109876543'
+
+create xor 'procedure Main is
+  V : Integer := 5;
+begin
+  Put_Num(V xor 1);
+end Main;' '4'

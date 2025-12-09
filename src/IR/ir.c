@@ -12,9 +12,6 @@ static instrList *lastInstr = NULL;
 static char *condLeft = NULL;
 static char *condRight = NULL;
 
-static const char *temps[18] = {"t0", "t1", "t2", "t3", "t4", "t5",
-                                "t6", "t7", "t8", "t9", "s0", "s1",
-                                "s2", "s3", "s4", "s5", "s6", "s7"};
 static int used[18];
 
 int emit2(Opcode opc, char *arg1, char *arg2);
@@ -88,6 +85,7 @@ int searchStrLiteralById(char *id, stringLiterals *strs) {
 }
 
 stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
+
   if (!strs) {
     strs = (stringLiterals *)malloc(sizeof(stringLiterals));
     strs->next = NULL;
@@ -99,8 +97,13 @@ stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
     return strs;
   }
   stringLiterals *head = strs;
-  while (strs->next)
+  while (strs->next) {
+    if (!strcmp(str, strs->str)) {
+      fprintf(stderr, "Strings with same id found\n");
+      return 0;
+    }
     strs = strs->next;
+  }
 
   strs->next = (stringLiterals *)malloc(sizeof(stringLiterals));
   strs->next->next = NULL;
@@ -150,6 +153,24 @@ int emitFunction(char *id, char *temp, char *temp2) {
   }
   return 1;
 }
+int emit1(Opcode opc, int val) {
+  instruction instr = {opc, NULL, NULL, NULL, NULL, val};
+  instrList *newNode = malloc(sizeof(instrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
+
 int emit2(Opcode opc, char *arg1, char *arg2) {
   instruction instr = {opc, arg1, arg2, NULL, NULL, 0};
   instrList *newNode = malloc(sizeof(instrList));
@@ -431,7 +452,7 @@ vars *transVarDecl(Stm varDecl, vars *vars, stringLiterals **strs, int *error) {
   if (varDecl->compound.fst->assign.type == STRLITERAL) {
 
     char *id = strdup(varDecl->compound.fst->assign.ident);
-    char *temp = id;
+    char *temp = newTemp();
     vars = addNode(id, temp, vars);
     if (!vars) {
       fprintf(stderr, "Error while addind node to vars struct\n");
@@ -440,6 +461,7 @@ vars *transVarDecl(Stm varDecl, vars *vars, stringLiterals **strs, int *error) {
     }
     *strs = addString(id, varDecl->compound.fst->assign.expr->str, *strs);
     ret = (*strs) != NULL;
+    emit2(LOADADRESS, temp, id);
     // transExp(varDecl->compound.fst->assign.expr, vars->temp, vars, strs);
   }
   if (!ret)
@@ -463,6 +485,12 @@ instrList *generateIR(Prog program, stringLiterals **strs) {
   lastInstr = NULL;
   int error = 0;
   stringLiterals *strsLocal = NULL;
+  strsLocal =
+      addString("askInputStr", "\"Enter string (max 64 chars): \"", *strs);
+  if (!strsLocal) {
+    fprintf(stderr, "Unable to add static string to stringLiterals struct\n");
+    return 0;
+  }
 
   for (int i = 0; i < 18; i++)
     used[i] = 0;
@@ -1309,14 +1337,53 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
 
     char *dst1 = "a0";
     char *dst2 = NULL;
-    char *temp = newTemp();
+    char *temp = NULL;
+    char *id1 = NULL;
+    char *id2 = NULL;
+    int remove = 0;
+    int gLine = 0;
+
+    if (stm->function.args->arg->tag == ID) {
+
+      if (searchStrLiteralById(stm->function.args->arg->id, *strs)) {
+
+        id1 = getVarTemp(stm->function.args->arg->id, vars);
+        if (!id1) {
+          fprintf(stderr, "Unable to find register binded by variable\n");
+          return 0;
+        }
+        id1 = strdup(id1);
+        temp = id1;
+      } else {
+        temp = newTemp();
+        remove = 1;
+      }
+    } else {
+      temp = newTemp();
+      remove = 1;
+    }
     int ret = transExp(stm->function.args->arg, temp, vars, strs);
+
     if (!ret) {
       fprintf(stderr, "Unable to translate expression inside function\n");
       return 0;
     }
-    emit2(MOVE, dst1, temp);
+
+    ret = ret && emit2(MOVE, dst1, temp);
+
     if (stm->function.args->nextArg) {
+      if (stm->function.args->nextArg->arg->tag == ID) {
+        id2 = getVarTemp(stm->function.args->nextArg->arg->id, vars);
+        if (!id2) {
+          fprintf(stderr, "Unable to find register binded to variable\n");
+          return 0;
+        }
+        id2 = strdup(id2);
+        temp = id2;
+      } else if (!remove) {
+        temp = newTemp();
+        remove = 1;
+      }
       dst2 = "a1";
 
       ret = ret && transExp(stm->function.args->nextArg->arg, temp, vars, strs);
@@ -1324,10 +1391,23 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
         fprintf(stderr, "Unable to translate expression inside function\n");
         return 0;
       }
-      emit2(MOVE, dst2, temp);
+      ret = ret && emit2(MOVE, dst2, temp);
     }
-    removeTemp(temp);
-    return emitFunction(stm->function.ident, dst1, dst2);
+
+    if (remove)
+      removeTemp(temp);
+
+    if (!strcmp(stm->function.ident, "Get_Line"))
+      gLine = 1;
+
+    if (gLine)
+      return ret && emit1(SAVEREGISTERS, tempCount + 1) &&
+             emitFunction(stm->function.ident, dst1, dst2) &&
+             emit2(MOVE, id1, dst1) && emit2(MOVE, id2, dst2) &&
+             emit1(LOADREGISTERS, tempCount + 1);
+    return ret && emit1(SAVEREGISTERS, tempCount + 1) &&
+           emitFunction(stm->function.ident, dst1, dst2) &&
+           emit1(LOADREGISTERS, tempCount + 1);
   } break;
   }
 }
@@ -1346,12 +1426,13 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
   case ID: {
     if (!dest)
       return -2;
-    if (searchStrLiteralById(exp->id, *strs))
-      return emit2(LOADADRESS, dest, exp->id);
     char *id = getVarTemp(exp->id, vars);
-    if (id == NULL)
+    if (id == NULL) {
+
+      if (searchStrLiteralById(exp->id, *strs))
+        return emit2(MOVE, dest, exp->id);
       id = exp->id;
-    else
+    } else
       id = strdup(id);
 
     if (dest && !strcmp(dest, id))
@@ -1450,6 +1531,12 @@ void printInstructions(instrList *list) {
   instrList *current = list;
   while (current != NULL) {
     switch (current->instr.opcode) {
+    case SAVEREGISTERS:
+      printf("SAVE %d registers\n", current->instr.num);
+      break;
+    case LOADREGISTERS:
+      printf("LOAD %d registers\n", current->instr.num);
+      break;
     case UNARY: {
       switch (current->instr.binop) {
       case NOT:

@@ -2,7 +2,8 @@
 
 testASM() {
   if [[ -e mars.jar && -e "$1.txt" ]]; then
-    java -jar ./mars.jar nc sm "$1.bin" >out.txt
+    cat "$1.in" | java -jar ./mars.jar nc sm "$1.bin" >out_raw.txt
+    sed 's/Enter string (max 64 chars): //g' out_raw.txt >out.txt
     if cmp --silent -- "$1.txt" "out.txt"; then
       return 0
     else
@@ -64,4 +65,4 @@ echo -e -n Tests:$tests
 echo -e -n " |\033[0;32m Success:$successes\033[0m |"
 echo -e "\033[0;31m Fail:$fails\033[0m"
 
-rm -f *.bin *.txt *.out >/dev/null 2>&1
+rm -f *.in *.adb *.bin *.txt *.out >/dev/null 2>&1

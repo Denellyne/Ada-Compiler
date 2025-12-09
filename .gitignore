@@ -8,3 +8,4 @@ tests/other
 tests/*.txt
 tests/*.bin
 *.adb
+*.in
