@@ -59,13 +59,14 @@ int main(int argc, char *argv[]) {
   printTable(tbl);
 
   stringLiterals *strs = NULL;
-  instrList *instrs = generateIR(prog, &strs);
+  floatLiterals *floats = NULL;
+  instrList *instrs = generateIR(prog, &strs, &floats);
   if (!instrs) {
     fprintf(stderr, "Unable to generate the IR for the source code given\n");
     return EXIT_FAILURE;
   }
   printInstructions(instrs);
-  if (!generateASM(argv[1], tbl, prog->varDec, instrs, strs)) {
+  if (!generateASM(argv[1], tbl, prog->varDec, instrs, strs, floats)) {
     freeInstructions(&instrs);
     freeStrings(&strs);
     fprintf(stderr,

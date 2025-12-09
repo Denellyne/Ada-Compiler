@@ -5,9 +5,9 @@
 static const char *temps[18] = {"t0", "t1", "t2", "t3", "t4", "t5",
                                 "t6", "t7", "t8", "t9", "s0", "s1",
                                 "s2", "s3", "s4", "s5", "s6", "s7"};
-static const char *tempFloats[16] = {
-    "f0",  "f2",  "f4",  "f6",  "f8",  "f10", "f12", "f14",
-    "f16", "f18", "f20", "f22", "f24", "f26", "f28", "f30",
+static const char *tempFloats[14] = {
+    "f0",  "f2",  "f4",  "f6",  "f8",  "f10", "f14",
+    "f16", "f18", "f20", "f22", "f24", "f26", "f28",
 };
 
 typedef enum {
@@ -48,6 +48,7 @@ typedef enum {
   SAVEREGISTERS,
   LOADREGISTERS,
   MOVEF,
+  MOVEFI,
   ADDF,
   SUBF,
   DIVIDEF,
@@ -68,6 +69,13 @@ struct _stringLiterals {
 };
 typedef struct _stringLiterals stringLiterals;
 
+struct _floatLiterals {
+  char *id;
+  double val;
+  struct _floatLiterals *next;
+};
+typedef struct _floatLiterals floatLiterals;
+
 struct _instruction {
   Opcode opcode;
   char *arg1;
@@ -86,7 +94,8 @@ struct _instrList {
 };
 typedef struct _instrList instrList;
 
-instrList *generateIR(Prog program, stringLiterals **strs);
+instrList *generateIR(Prog program, stringLiterals **strs,
+                      floatLiterals **floats);
 void printInstructions(instrList *list);
 void freeInstructions(instrList **list);
 void freeStrings(stringLiterals **strs);

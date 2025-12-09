@@ -4,6 +4,6 @@
 #include "../Table/table.h"
 
 int generateASM(char *fileName, Table tbl, Stm varDecl, instrList *ir,
-                stringLiterals *strs);
+                stringLiterals *strs, floatLiterals *floats);
 
 #endif

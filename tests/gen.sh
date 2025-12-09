@@ -13,11 +13,18 @@ create() {
   printf '%s' "$in" >"$name.adb.in"
 }
 
+create floatPowTest 'procedure Main is
+  V : Float := 2.0;
+begin
+  V := V ** 20;
+  Put_Num(V);
+end Main;' '1048576.0'
 create floatTest 'procedure Main is
-  V : Float := 3.1415917;
+  V : Float := 3.141591;
 begin
   V := V + 1.0;
-end Main;' '0'
+  Put_Num(V);
+end Main;' '4.141591'
 
 create ifsmall 'procedure Main is
   V : Boolean := True;

@@ -5,7 +5,8 @@ int printConditional(instrList *ir, FILE *file);
 int printAssignment(instrList *ir, FILE *file);
 int printLoop(instrList *ir, FILE *file);
 int printJump(instrList *ir, FILE *file);
-int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs);
+int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs,
+                     floatLiterals *floats);
 int printHeader(FILE *file);
 int printMain(FILE *file, instrList *instrs);
 int printInstr(FILE *file, instrList *instrs);
@@ -15,11 +16,12 @@ int printGetLineFunction(FILE *file);
 int printPutNumFunction(FILE *file);
 int printCallFunction(FILE *file, char *functionName);
 int printStaticString(FILE *file, stringLiterals *strs);
+int printStaticFloats(FILE *file, floatLiterals *floats);
 int printSaveRegisters(FILE *file, int regs);
 int printLoadRegisters(FILE *file, int regs);
 
 int generateASM(char *fileName, Table tbl, Stm varDecl, instrList *ir,
-                stringLiterals *strs) {
+                stringLiterals *strs, floatLiterals *floats) {
   char *outputFile;
   asprintf(&outputFile, "%s.bin", fileName);
   if (!outputFile) {
@@ -33,7 +35,7 @@ int generateASM(char *fileName, Table tbl, Stm varDecl, instrList *ir,
     return 0;
   }
 
-  if (!printDataSection(tbl, varDecl, out, strs)) {
+  if (!printDataSection(tbl, varDecl, out, strs, floats)) {
     fprintf(stderr, "Unable to print .data section to file\n");
     fclose(out);
     return 0;
@@ -92,12 +94,17 @@ int printTableVariables(Table tbl, Stm varDecl, FILE *file) {
 
   return printTableVariables(tbl, varDecl->compound.snd, file);
 }
-int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs) {
+int printDataSection(Table tbl, Stm varDecl, FILE *file, stringLiterals *strs,
+                     floatLiterals *floats) {
   if (fprintf(file, "\t.data\n\tbuffer: .space 64\n") < 0)
     return 0;
 
   if (!printStaticString(file, strs)) {
     fprintf(stderr, "Unable to print static strings\n");
+    return 0;
+  }
+  if (!printStaticFloats(file, floats)) {
+    fprintf(stderr, "Unable to print constant floats\n");
     return 0;
   }
   return 1;
@@ -142,10 +149,26 @@ int printInstr(FILE *file, instrList *instrs) {
         return 0;
       }
       break;
+    case POWERF:
+      if (fprintf(file, "mov.d $f12,$%s\n", current->instr.arg2) < 0)
+        return 0;
+      if (fprintf(file, "move $a1,$%s\n", current->instr.arg3) < 0)
+        return 0;
+      if (fprintf(file, "li $a2,1\n") < 0)
+        return 0;
+      if (!printCallFunction(file, "pow")) {
+        fprintf(stderr, "Unable to print function for the Power operator\n");
+        return 0;
+      }
+      if (fprintf(file, "mov.d $%s,$f30\n", current->instr.arg1) < 0)
+        return 0;
+      break;
     case POWER:
       if (fprintf(file, "move $a0,$%s\n", current->instr.arg2) < 0)
         return 0;
       if (fprintf(file, "move $a1,$%s\n", current->instr.arg3) < 0)
+        return 0;
+      if (fprintf(file, "li $a2,0\n") < 0)
         return 0;
       if (!printCallFunction(file, "pow")) {
         fprintf(stderr, "Unable to print function for the Power operator\n");
@@ -159,7 +182,10 @@ int printInstr(FILE *file, instrList *instrs) {
         return 0;
       if (fprintf(file, "li $a1,%d\n", current->instr.num) < 0)
         return 0;
-      printCallFunction(file, "pow");
+      if (!printCallFunction(file, "pow")) {
+        fprintf(stderr, "Unable to print function for the Power operator\n");
+        return 0;
+      }
       if (fprintf(file, "move $%s,$v0\n", current->instr.arg1) < 0)
         return 0;
       break;
@@ -171,6 +197,11 @@ int printInstr(FILE *file, instrList *instrs) {
     case XRI:
       if (fprintf(file, "xori $%s,$%s, %d\n", current->instr.arg1,
                   current->instr.arg2, current->instr.num) < 0)
+        return 0;
+      break;
+    case SUBF:
+      if (fprintf(file, "sub.d $%s,$%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
         return 0;
       break;
     case SUB:
@@ -193,8 +224,18 @@ int printInstr(FILE *file, instrList *instrs) {
                   current->instr.arg2, current->instr.num) < 0)
         return 0;
       break;
+    case MULTF:
+      if (fprintf(file, "mul.d $%s, $%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
+        return 0;
+      break;
     case MULT:
       if (fprintf(file, "mul $%s, $%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
+        return 0;
+      break;
+    case DIVIDEF:
+      if (fprintf(file, "div.f $%s,$%s, $%s\n", current->instr.arg1,
                   current->instr.arg2, current->instr.arg3) < 0)
         return 0;
       break;
@@ -220,6 +261,11 @@ int printInstr(FILE *file, instrList *instrs) {
       break;
     case LOADADRESS:
       if (fprintf(file, "la $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2) < 0)
+        return 0;
+      break;
+    case MOVEFI:
+      if (fprintf(file, "ldc1 $%s, %s\n", current->instr.arg1,
                   current->instr.arg2) < 0)
         return 0;
       break;
@@ -431,24 +477,45 @@ int printPowFunction(FILE *file) {
          addiu $sp, $sp, -8 \n\
          sw $fp, 0($sp)\n\
          sw $ra, 4($sp)\n\
-         move $fp, $sp\n\n\
-         beq $a1,$zero,pow_0\n\
+         move $fp, $sp\n\
+         bnez $a2,powFloat\n\
+powNum:\n\
+         beq $a1,$zero,powNum_0\n\
          beq $a1,1,pow_ret\n\
          move $v0,$a0\n\
-         move $t0,$a1\n\n\
-         pow_start:\n\
+         move $t0,$a1\n\
+\n\
+powNum_start:\n\
          mul $v0,$v0,$a0\n\
          addiu $t0,$t0,-1\n\
          beq $t0,1,pow_ret\n\
-         j pow_start\n\
-         pow_0:\n\n\
+         j powNum_start\n\
+powNum_0:\n\
+\n\
          li $v0,1\n\
-         pow_ret:\n\n\
+       	 j pow_ret\n\
+powFloat:\n\
+	 beq $a1,$zero,powFloat_0\n\
+         beq $a1,1,pow_ret\n\
+         mov.d $f30,$f12\n\
+         move $t0,$a1\n\
+powFloat_Start:\n\
+         mul.d $f30,$f30,$f12\n\
+         addiu $t0,$t0,-1\n\
+         beq $t0,1,pow_ret\n\
+         j powFloat_Start\n\
+powFloat_0:\n\
+\n\
+         mtc1.d $zero,$f30\n\
+       	 j pow_ret\n\
+pow_ret:\n\
+\n\
          move $sp, $fp\n\
          lw $ra, 4($sp)\n\
          lw $fp, 0($sp)\n\
          addiu $sp, $sp, 8\n\
-         jr $ra\n";
+         jr $ra\n\
+";
 
   if (fprintf(file, "\n%s\n", powASMString) < 0)
     return 0;
@@ -461,6 +528,13 @@ int printCallFunction(FILE *file, char *functionName) {
               functionName) < 0)
     return 0;
   return 1;
+}
+int printStaticFloats(FILE *file, floatLiterals *floats) {
+  if (!floats)
+    return 1;
+  if (fprintf(file, "%s: \t.double %f\n", floats->id, floats->val) < 0)
+    return 0;
+  return printStaticFloats(file, floats->next);
 }
 int printStaticString(FILE *file, stringLiterals *strs) {
   if (!strs)
@@ -556,15 +630,21 @@ int printPutNumFunction(FILE *file) {
          sw $fp, 0($sp)\n\
          sw $ra, 4($sp)\n\
          move $fp, $sp\n\
-         \n\
+         bnez $a1,isFloat\n\
+isNum:      \n\
          li $v0, 1\n\
-         syscall\n\
-         \n\
+         j Put_NumEnd\n\
+isFloat:\n\
+         li $v0, 3      \n\
+         j Put_NumEnd         \n\
+Put_NumEnd:\n\
+	 syscall\n\
          move $sp, $fp\n\
          lw $ra, 4($sp)\n\
          lw $fp, 0($sp)\n\
          addiu $sp, $sp, 8\n\
-         jr $ra\n";
+         jr $ra\n\
+";
 
   if (fprintf(file, "\n%s\n", putLine) < 0)
     return 0;
