@@ -229,7 +229,6 @@ int printInstr(FILE *file, instrList *instrs) {
         return 0;
       break;
     case CALL:
-
       if (printCallFunction(file, current->instr.arg1) == 0)
         return 0;
       break;
@@ -313,40 +312,6 @@ int printInstr(FILE *file, instrList *instrs) {
                   current->instr.arg2, current->instr.arg3) < 0)
         return 0;
       break;
-    case OP: {
-      char *op_str;
-      switch (current->instr.binop) {
-      case AND:
-        op_str = "and";
-        break;
-      case OR:
-        op_str = "or";
-        break;
-      case EQ:
-        op_str = "=";
-        break;
-      case NEQ:
-        op_str = "/=";
-        break;
-      case LT:
-        op_str = "<";
-        break;
-      case GT:
-        op_str = ">";
-        break;
-      case LE:
-        op_str = "<=";
-        break;
-      case GE:
-        op_str = ">=";
-        break;
-      default:
-        op_str = "?";
-      }
-      // printf("%s := %s %s %s\n", current->instr.arg1, current->instr.arg2,
-      //        op_str, current->instr.arg3);
-      break;
-    }
     case LABEL:
       if (fprintf(file, "%s:\n", current->instr.arg1) < 0)
         return 0;
@@ -408,9 +373,9 @@ int printLoadRegisters(FILE *file, int regs) {
   }
 
   char *loadRegistersString = "";
-  for (int i = 1; i <= regs; i++) {
+  for (int i = 0; i < regs; i++) {
     asprintf(&loadRegistersString, "%s\nlw $%s,%d($sp)", loadRegistersString,
-             temps[i], i * 4);
+             temps[i], (i + 1) * 4);
     if (!loadRegistersString) {
       fprintf(stderr, "Unable to write to string to save the registers\n");
       return 0;
@@ -435,9 +400,9 @@ int printSaveRegisters(FILE *file, int regs) {
   }
 
   char *saveRegistersString = "";
-  for (int i = 1; i <= regs; i++) {
+  for (int i = 0; i < regs; i++) {
     asprintf(&saveRegistersString, "%s\nsw $%s,%d($sp)", saveRegistersString,
-             temps[i], size - (i * 4));
+             temps[i], ((i + 1) * 4));
     if (!saveRegistersString) {
       fprintf(stderr, "Unable to write to string to save the registers\n");
       return 0;

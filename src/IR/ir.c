@@ -1401,13 +1401,13 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
       gLine = 1;
 
     if (gLine)
-      return ret && emit1(SAVEREGISTERS, tempCount + 1) &&
+      return ret && emit1(SAVEREGISTERS, tempCount) &&
              emitFunction(stm->function.ident, dst1, dst2) &&
-             emit2(MOVE, id1, dst1) && emit2(MOVE, id2, dst2) &&
-             emit1(LOADREGISTERS, tempCount + 1);
-    return ret && emit1(SAVEREGISTERS, tempCount + 1) &&
+             emit1(LOADREGISTERS, tempCount) && emit2(MOVE, id1, dst1) &&
+             emit2(MOVE, id2, dst2);
+    return ret && emit1(SAVEREGISTERS, tempCount) &&
            emitFunction(stm->function.ident, dst1, dst2) &&
-           emit1(LOADREGISTERS, tempCount + 1);
+           emit1(LOADREGISTERS, tempCount);
   } break;
   }
 }
@@ -1463,7 +1463,6 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
     return emit2(LOADADRESS, dest, id);
   } break;
   case UNARYOP:
-
     return transExp(exp->unaryop.exp, dest, vars, strs);
     break;
   }
@@ -1473,13 +1472,40 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
 int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
   if (dest == NULL) {
 
-    condLeft = newTemp();
-    condRight = newTemp();
+    condLeft = NULL;
+    condRight = NULL;
+    int temp1 = 0, temp2 = 0;
+    if (exp->binop.left->tag == ID) {
+      condLeft = getVarTemp(exp->binop.left->id, vars);
+      if (!condLeft) {
+        fprintf(stderr, "Unable to find register binded to variable\n");
+        return 0;
+      }
+      condLeft = strdup(condLeft);
+    } else if (!condLeft) {
+      condLeft = newTemp();
+      temp1 = 1;
+    }
 
     transExp(exp->binop.left, condLeft, vars, strs);
+    if (exp->binop.right->tag == ID) {
+      condRight = getVarTemp(exp->binop.right->id, vars);
+      if (!condLeft) {
+        fprintf(stderr, "Unable to find register binded to variable\n");
+        return 0;
+      }
+      condRight = strdup(condRight);
+    } else if (!condRight) {
+      condRight = newTemp();
+      temp2 = 1;
+    }
+
     transExp(exp->binop.right, condRight, vars, strs);
-    removeTemp(condLeft);
-    removeTemp(condRight);
+
+    if (temp1)
+      removeTemp(condLeft);
+    if (temp2)
+      removeTemp(condRight);
     return 1;
   }
   char *t1 = NULL;
@@ -1532,7 +1558,7 @@ void printInstructions(instrList *list) {
   while (current != NULL) {
     switch (current->instr.opcode) {
     case SAVEREGISTERS:
-      printf("SAVE %d registers\n", current->instr.num);
+      printf("STORE %d registers\n", current->instr.num);
       break;
     case LOADREGISTERS:
       printf("LOAD %d registers\n", current->instr.num);

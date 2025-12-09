@@ -71,18 +71,18 @@ int checkExprType(Table tbl, Exp expr) {
     case MINUS:
     case TIMES:
     case DIV:
-      return checkExprType(tbl, expr->binop.left) &&
-             checkExprType(tbl, expr->binop.right) && TBL_INT;
+      return checkExprType(tbl, expr->binop.left) &
+             checkExprType(tbl, expr->binop.right) & TBL_INT;
       break;
     case XOR: {
 
       int left = checkExprType(tbl, expr->binop.left);
       int right = checkExprType(tbl, expr->binop.right);
-      if ((left && right) == 0)
+      if ((left & right) == 0)
         return TBL_ERROR;
-      if (left && TBL_INT)
+      if (left & TBL_INT)
         return TBL_INT;
-      else if (left && TBL_BOOL)
+      else if (left & TBL_BOOL)
         return TBL_BOOL;
       return TBL_ERROR;
     } break;
@@ -99,7 +99,7 @@ int checkExprType(Table tbl, Exp expr) {
         fprintf(stderr, "One of the operands on a comparison was an error\n");
         return TBL_ERROR;
       }
-      if (left && (TBL_INT || TBL_BOOL) && right && (TBL_BOOL || TBL_INT))
+      if (left & (TBL_INT | TBL_BOOL) && (right & (TBL_BOOL | TBL_INT)))
         return left & right;
 
       fprintf(stderr,
@@ -114,7 +114,7 @@ int checkExprType(Table tbl, Exp expr) {
 
       int left = checkExprType(tbl, expr->binop.left);
       int right = checkExprType(tbl, expr->binop.right);
-      if (left && (TBL_INT || TBL_BOOL) && right && (TBL_BOOL || TBL_INT))
+      if (left & (TBL_INT | TBL_BOOL) && right & ((TBL_BOOL | TBL_INT)))
         return left && right;
       fprintf(stderr,
               "Invalid type for operation, Wanted:TBL_BOOL Got:Left=%d "
