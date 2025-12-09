@@ -193,6 +193,10 @@ floatLiterals *addFloat(const double val, floatLiterals *floats) {
 
   if (!floats) {
     floats = (floatLiterals *)malloc(sizeof(floatLiterals));
+    if (!floats) {
+      fprintf(stderr, "Unable to malloc memory for struct floatLiterals\n");
+      return NULL;
+    }
     floats->next = NULL;
     floats->id = strdup("constFloat0");
     floats->val = val;
@@ -209,6 +213,10 @@ floatLiterals *addFloat(const double val, floatLiterals *floats) {
   }
 
   floats->next = (floatLiterals *)malloc(sizeof(floatLiterals));
+  if (!floats->next) {
+    fprintf(stderr, "Unable to malloc memory for struct floatLiterals\n");
+    return NULL;
+  }
   floats->next->next = NULL;
 
   asprintf(&floats->next->id, "constFloat%d", counter);
@@ -220,6 +228,10 @@ stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
 
   if (!strs) {
     strs = (stringLiterals *)malloc(sizeof(stringLiterals));
+    if (!strs) {
+      fprintf(stderr, "Unable to malloc memory for struct floatLiterals\n");
+      return NULL;
+    }
     strs->next = NULL;
     strs->id = strdup(id);
     if (!str)
@@ -238,6 +250,10 @@ stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
   }
 
   strs->next = (stringLiterals *)malloc(sizeof(stringLiterals));
+  if (!strs->next) {
+    fprintf(stderr, "Unable to malloc memory for struct floatLiterals\n");
+    return NULL;
+  }
   strs->next->next = NULL;
 
   strs->next->id = strdup(id);
