@@ -75,5 +75,6 @@ int main(int argc, char *argv[]) {
   }
   freeInstructions(&instrs);
   freeStrings(&strs);
+  freeFloats(&floats);
   return EXIT_SUCCESS;
 }

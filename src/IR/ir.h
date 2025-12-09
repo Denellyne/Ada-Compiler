@@ -99,5 +99,6 @@ instrList *generateIR(Prog program, stringLiterals **strs,
 void printInstructions(instrList *list);
 void freeInstructions(instrList **list);
 void freeStrings(stringLiterals **strs);
+void freeFloats(floatLiterals **floats);
 
 #endif

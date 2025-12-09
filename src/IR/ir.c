@@ -58,6 +58,53 @@ int transBinOp(Exp exp, char *dest, vars *, stringLiterals **strs,
 Exp applyNotToExpr(Exp exp, int neg, vars *);
 void freeVariables(vars **variables);
 char *getVarTemp(char *id, vars *vars);
+int checkExprTypeLazy(Exp expr, vars *vars);
+int searchStrLiteralById(char *id, stringLiterals *strs);
+char *searchFloatConstant(const double val, floatLiterals *floats);
+
+char *getTemp(Exp exp, vars *vars, int *isTemp) {
+  char *id = NULL;
+  if (!exp) {
+    fprintf(stderr, "Passed expression is NULL\n");
+    return NULL;
+  }
+  switch (exp->tag) {
+  case ID: {
+    id = getVarTemp(exp->id, vars);
+    if (!id) {
+      fprintf(stderr, "Unable to find register binded by variable\n");
+      break;
+    }
+    id = strdup(id);
+  } break;
+  case FLOAT:
+    id = newTempFloat();
+    *isTemp = 1;
+    break;
+  case BINOP: {
+    int leftType = checkExprTypeLazy(exp->binop.left, vars);
+    int rightType = checkExprTypeLazy(exp->binop.right, vars);
+    if (leftType == FLOAT && (rightType == FLOAT || rightType == NUM)) {
+      id = newTempFloat();
+      *isTemp = 1;
+      break;
+    }
+    id = newTemp();
+    *isTemp = 1;
+    break;
+  }
+  default:
+    id = newTemp();
+    *isTemp = 1;
+    break;
+  }
+
+  if (!id) {
+    fprintf(stderr, "Unable to set temp to register\n");
+    return NULL;
+  }
+  return id;
+}
 int checkExprTypeLazy(Exp expr, vars *vars) {
   switch (expr->tag) {
   case NUM:
@@ -89,14 +136,17 @@ int checkExprTypeLazy(Exp expr, vars *vars) {
 }
 
 char *getVarTemp(char *id, vars *vars) {
-  if (!vars || !id)
+  if (!vars || !id) {
+    fprintf(stderr, "Vars table empty/Id is empty\n");
     return NULL;
+  }
   while (vars) {
     if (!strcmp(id, vars->id))
       return vars->temp;
 
     vars = vars->next;
   }
+  fprintf(stderr, "Unable to find register binded to variable %s\n", id);
   return NULL;
 }
 
@@ -204,6 +254,10 @@ stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
 
 char *newStaticString() {
   char *id = malloc(10);
+  if (!id) {
+    fprintf(stderr, "Unable to malloc memory for id of new static string\n");
+    return NULL;
+  }
   sprintf(id, "str%d", staticStrCount++);
 
   return id;
@@ -212,7 +266,7 @@ char *newStaticString() {
 void removeTempFloat(char *temp) {
   if (!temp)
     return;
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < 14; i++) {
     if (strcmp(temp, tempFloats[i]) == 0) {
       usedFloats[i] = 0;
       floatsCount--;
@@ -712,10 +766,9 @@ Exp applyNotToExpr(Exp exp, int neg, vars *vars) {
   case ID: {
     if (neg) {
       char *id = getVarTemp(exp->id, vars);
-      if (!id) {
-        fprintf(stderr, "Unable to find register binded to variable\n");
+      if (!id)
         return NULL;
-      }
+
       id = strdup(id);
       emit2(NEG, id, id);
     }
@@ -813,10 +866,9 @@ int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
            emitJump(labelFalse);
   } else if (exp->tag == ID) {
     char *id = getVarTemp(exp->id, vars);
-    if (id == NULL) {
-      fprintf(stderr, "Unable to find register for variable %s\n", exp->id);
+    if (!id)
       return 0;
-    }
+
     id = strdup(id);
     return transExp(exp, id, vars, strs, floats) &&
            emitCond(BNEZ, id, NULL, labelTrue, labelFalse, 0) &&
@@ -858,10 +910,9 @@ int emitCompoundIfEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                            labelFalse, val);
   } else if (exp->tag == ID) {
     char *id = getVarTemp(exp->id, vars);
-    if (id == NULL) {
-      fprintf(stderr, "Unable to find register for variable %s\n", exp->id);
+    if (!id)
       return 0;
-    }
+
     id = strdup(id);
     return transExp(exp, id, vars, strs, floats) &&
            emitCond(NEQ, id, "zero", labelTrue, labelFalse, 0);
@@ -901,10 +952,9 @@ int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                            labelFalse, val);
   } else if (exp->tag == ID) {
     char *id = getVarTemp(exp->id, vars);
-    if (id == NULL) {
-      fprintf(stderr, "Unable to find register for variable %s\n", exp->id);
+    if (!id)
       return 0;
-    }
+
     id = strdup(id);
     return transExp(exp, id, vars, strs, floats) &&
            emitCond(NEQ, id, "zero", labelTrue, labelFalse, 0);
@@ -1067,11 +1117,9 @@ int emitCompoundIfOrEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 
     if (exp->binop.left->tag == ID) {
       char *id = getVarTemp(exp->binop.left->id, vars);
-      if (id == NULL) {
-        fprintf(stderr, "Unable to find register for variable %s\n",
-                exp->binop.left->id);
+      if (!id)
         return 0;
-      }
+
       id = strdup(id);
       return transExp(exp->binop.left, id, vars, strs, floats) &&
              emitCond(BNEZ, id, NULL, labelTrue, labelOr, 0) &&
@@ -1149,11 +1197,9 @@ int emitCompoundIfAndEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                                         vars, strs, neg, floats);
     } else if (exp->binop.left->tag == ID) {
       char *id = getVarTemp(exp->binop.left->id, vars);
-      if (!id) {
-        fprintf(stderr, "Unable to find register for variable %s\n",
-                exp->binop.left->id);
+      if (!id)
         return 0;
-      }
+
       id = strdup(id);
       return transExp(exp->binop.left, id, vars, strs, floats) &&
              emitCond(BNEZ, id, NULL, labelAnd, labelFalse, 0) &&
@@ -1221,11 +1267,9 @@ int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                                    vars, strs, floats);
     } else if (exp->binop.left->tag == ID) {
       char *id = getVarTemp(exp->binop.left->id, vars);
-      if (!id) {
-        fprintf(stderr, "Unable to find register for variable %s\n",
-                exp->binop.left->id);
+      if (!id)
         return 0;
-      }
+
       id = strdup(id);
       return transExp(exp->binop.left, id, vars, strs, floats) &&
              emitCond(NEQ, id, "zero", labelAndTrue, labelFalse, 0) &&
@@ -1295,11 +1339,9 @@ int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 
     if (exp->binop.left->tag == ID) {
       char *id = getVarTemp(exp->binop.left->id, vars);
-      if (id == NULL) {
-        fprintf(stderr, "Unable to find register for variable %s\n",
-                exp->binop.left->id);
+      if (!id)
         return 0;
-      }
+
       id = strdup(id);
       return transExp(exp->binop.left, id, vars, strs, floats) &&
              emitCond(NEQ, id, "zero", labelFalse, labelTrue, 0) &&
@@ -1342,42 +1384,30 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
     char *id = getVarTemp(stm->assign.ident, vars);
     char *temp = NULL;
     int remove = 0;
-    int removeFloat = 0;
     int isFloat = 0;
-    if (!id) {
-      fprintf(stderr, "Unable to find variable to bind the value\n");
+    int isFloat2 = 0;
+    if (!id)
       return 0;
-    }
+
     id = strdup(id);
     if (id[0] == 'f')
       isFloat = 1;
-    if (stm->assign.expr->tag == ID) {
+    temp = strdup(getTemp(stm->assign.expr, vars, &remove));
+    if (!temp)
+      return 0;
 
-      temp = getVarTemp(stm->assign.expr->id, vars);
-      if (!temp) {
-        fprintf(stderr, "Unable to find variable to bind the value\n");
-        return 0;
-      }
-      temp = strdup(temp);
-      if (temp[0] == 'f')
-        isFloat = 1;
-
-    } else if (isFloat || checkExprTypeLazy(stm->assign.expr, vars) == FLOAT) {
-      temp = newTempFloat();
-      removeFloat = 1;
+    if (temp[0] == 'f') {
+      isFloat2 = 1;
       isFloat = 1;
-    } else {
-      temp = newTemp();
-      remove = 1;
     }
     int ret = transExp(stm->assign.expr, temp, vars, strs, floats);
     if (checkExprTypeLazy(stm->assign.expr, vars) == FLOAT || isFloat)
       ret = ret && emit2(MOVEF, id, temp);
     else
       ret = ret && emit2(MOVE, id, temp);
-    if (remove)
+    if (remove && !isFloat2)
       removeTemp(temp);
-    else if (removeFloat)
+    else if (remove && isFloat2)
       removeTempFloat(temp);
     return ret;
 
@@ -1418,11 +1448,9 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
 
     } else if (stm->ifStmt.cond->tag == ID) {
       char *id = getVarTemp(stm->ifStmt.cond->id, vars);
-      if (id == NULL) {
-        fprintf(stderr, "Unable to find register for variable %s\n",
-                stm->ifStmt.cond->id);
+      if (!id)
         return 0;
-      }
+
       id = strdup(id);
       ret = transExp(stm->ifStmt.cond, id, vars, strs, floats);
       ret = ret && emitCond(NEQ, id, "zero", labelTrue, labelFalse, 0);
@@ -1492,11 +1520,9 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
     }
     if (stm->whileStmt.cond->tag == ID) {
       char *id = getVarTemp(stm->whileStmt.cond->id, vars);
-      if (id == NULL) {
-        fprintf(stderr, "Unable to find register for variable %s\n",
-                stm->whileStmt.cond->id);
+      if (!id)
         return 0;
-      }
+
       id = strdup(id);
       int ret = transExp(stm->whileStmt.cond, id, vars, strs, floats) &&
                 emitCond(BNEZ, id, NULL, labelBody, labelEnd, 0) &&
@@ -1555,27 +1581,13 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
     int isFloat = 0;
     int isFloat2 = 0;
 
-    if (stm->function.args->arg->tag == ID) {
+    id1 = strdup(getTemp(stm->function.args->arg, vars, &remove));
+    if (!id1)
+      return 0;
+    if (id1[0] == 'f')
+      isFloat = 1;
+    temp = strdup(id1);
 
-      id1 = getVarTemp(stm->function.args->arg->id, vars);
-      if (!id1) {
-        fprintf(stderr, "Unable to find register binded by variable\n");
-        return 0;
-      }
-      id1 = strdup(id1);
-      temp = id1;
-      if (id1[0] == 'f')
-        isFloat = 1;
-    } else {
-      if (checkExprTypeLazy(stm->function.args->arg, vars) == FLOAT) {
-        temp = newTempFloat();
-        remove = 1;
-        isFloat = 1;
-      } else {
-        temp = newTemp();
-        remove = 1;
-      }
-    }
     int ret = transExp(stm->function.args->arg, temp, vars, strs, floats);
 
     if (!ret) {
@@ -1589,20 +1601,12 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
       ret = ret && emit2(MOVE, dst1, temp);
 
     if (stm->function.args->nextArg) {
-      if (stm->function.args->nextArg->arg->tag == ID) {
-        id2 = getVarTemp(stm->function.args->nextArg->arg->id, vars);
-        if (!id2) {
-          fprintf(stderr, "Unable to find register binded to variable\n");
-          return 0;
-        }
-        id2 = strdup(id2);
-        temp2 = id2;
-        if (id2[0] == 'f')
-          isFloat2 = 1;
-      } else {
-        temp2 = newTemp();
-        remove2 = 1;
-      }
+      id2 = strdup(getTemp(stm->function.args->nextArg->arg, vars, &remove2));
+      if (!id2)
+        return 0;
+      temp2 = strdup(id2);
+      if (id2[0] == 'f')
+        isFloat2 = 1;
       dst2 = "a1";
 
       ret = ret && transExp(stm->function.args->nextArg->arg, temp2, vars, strs,
@@ -1678,7 +1682,7 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
     if (!dest)
       return -2;
     char *id = getVarTemp(exp->id, vars);
-    if (id == NULL) {
+    if (!id) {
       if (searchStrLiteralById(exp->id, *strs))
         return emit2(MOVE, dest, exp->id);
       id = exp->id;
@@ -1730,30 +1734,14 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
     condLeft = NULL;
     condRight = NULL;
     int temp1 = 0, temp2 = 0;
-    if (exp->binop.left->tag == ID) {
-      condLeft = getVarTemp(exp->binop.left->id, vars);
-      if (!condLeft) {
-        fprintf(stderr, "Unable to find register binded to variable\n");
-        return 0;
-      }
-      condLeft = strdup(condLeft);
-    } else if (!condLeft) {
-      condLeft = newTemp();
-      temp1 = 1;
-    }
+    condLeft = strdup(getTemp(exp->binop.left, vars, &temp1));
+    if (!condLeft)
+      return 0;
 
     transExp(exp->binop.left, condLeft, vars, strs, floats);
-    if (exp->binop.right->tag == ID) {
-      condRight = getVarTemp(exp->binop.right->id, vars);
-      if (!condLeft) {
-        fprintf(stderr, "Unable to find register binded to variable\n");
-        return 0;
-      }
-      condRight = strdup(condRight);
-    } else if (!condRight) {
-      condRight = newTemp();
-      temp2 = 1;
-    }
+    condRight = strdup(getTemp(exp->binop.right, vars, &temp2));
+    if (!condRight)
+      return 0;
 
     transExp(exp->binop.right, condRight, vars, strs, floats);
 
@@ -1764,28 +1752,15 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
     return 1;
   }
   char *t1 = NULL;
-  int temp1 = 0, temp2 = 0, temp1F = 0, temp2F = 0;
+  int temp1 = 0, temp2 = 0;
   int isFloat = 0;
-  if (exp->binop.left->tag == ID) {
-    t1 = getVarTemp(exp->binop.left->id, vars);
-    if (!t1) {
-      fprintf(stderr, "Unable to find register binded to variable\n");
-      return 0;
-    }
-    t1 = strdup(t1);
-    if (t1[0] == 'f')
-      isFloat = 1;
-  } else {
-    if (checkExprTypeLazy(exp->binop.left, vars) == FLOAT ||
-        checkExprTypeLazy(exp->binop.right, vars) == FLOAT) {
-      t1 = newTempFloat();
-      temp1F = 1;
-      isFloat = 1;
-    } else {
-      t1 = newTemp();
-      temp1 = 1;
-    }
-  }
+  int isFloat2 = 0;
+  t1 = strdup(getTemp(exp->binop.left, vars, &temp1));
+  if (!t1)
+    return 0;
+
+  if (t1[0] == 'f')
+    isFloat = 1;
 
   transExp(exp->binop.left, t1, vars, strs, floats);
 
@@ -1795,35 +1770,23 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
     if (temp1)
       removeTemp(t1);
     return emitOp(exp->binop.op, dest, t1, NULL, (int)exp->binop.right->val);
-  } else if (i == -2) {
-    t2 = getVarTemp(exp->binop.right->id, vars);
-    if (!t2) {
-      fprintf(stderr, "Unable to find register binded to variable\n");
-      return 0;
-    }
-    t2 = strdup(t2);
-    if (t2[0] == 'f')
-      isFloat = 1;
   } else if (i == 0)
     return 0;
-  else {
-    if (checkExprTypeLazy(exp->binop.right, vars) == FLOAT) {
-      t2 = newTempFloat();
-      temp2F = 1;
-      isFloat = 1;
-    } else {
-      t2 = newTemp();
-      temp2 = 1;
-    }
-  }
+  t2 = strdup(getTemp(exp->binop.right, vars, &temp2));
+  if (!t2)
+    return 0;
+
+  if (t2[0] == 'f')
+    isFloat2 = 1;
+
   transExp(exp->binop.right, t2, vars, strs, floats);
-  if (temp1)
+  if (temp1 && !isFloat)
     removeTemp(t1);
-  if (temp2)
-    removeTemp(t2);
-  if (temp1F)
+  else if (temp1 && isFloat)
     removeTempFloat(t1);
-  if (temp2F)
+  if (temp2 && !isFloat2)
+    removeTemp(t2);
+  else if (temp2 && isFloat2)
     removeTempFloat(t2);
 
   if (isFloat)
@@ -2140,6 +2103,16 @@ void freeVariables(vars **variables) {
     free((*variables)->temp);
     free(*variables);
     *variables = next;
+  }
+}
+void freeFloats(floatLiterals **floats) {
+
+  while (*floats) {
+    floatLiterals *next = (*floats)->next;
+    free((*floats)->id);
+    free(*floats);
+
+    *floats = next;
   }
 }
 void freeStrings(stringLiterals **strs) {

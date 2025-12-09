@@ -1,6 +1,6 @@
 #!/bin/sh
 
-rm *.adb
+rm -f *.in *.adb *.bin *.txt *.out >/dev/null 2>&1
 
 create() {
   name="$1"
