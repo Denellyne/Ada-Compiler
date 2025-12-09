@@ -69,6 +69,8 @@ int checkExprType(Table tbl, Exp expr) {
     case POW: {
       int typeL = checkExprType(tbl, expr->binop.left);
       int typeR = checkExprType(tbl, expr->binop.right);
+      if (typeR == TBL_FLOAT)
+        return TBL_ERROR;
       if (typeL & (TBL_INT | TBL_FLOAT) && (typeR & TBL_INT)) {
         if (typeL == TBL_FLOAT)
           return TBL_FLOAT;
