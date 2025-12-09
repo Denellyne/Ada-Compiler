@@ -10,6 +10,12 @@ Exp mkStringLiteral(char *stringLiteral) {
   return e;
 }
 
+Exp mkFloat(double v) {
+  Exp e = (Exp)malloc(sizeof(struct _exp));
+  e->tag = FLOAT;
+  e->val = v;
+  return e;
+}
 Exp mkNum(double v) {
   Exp e = (Exp)malloc(sizeof(struct _exp));
   e->tag = NUM;
@@ -73,6 +79,9 @@ Stm mkAssign(char *id, int type, Exp exp) {
   ptr->assign.ident = id;
   if (!exp) {
     switch (type) {
+    case FLOAT:
+      exp = mkFloat(0);
+      break;
     case NUM:
       exp = mkNum(0);
       break;
@@ -183,6 +192,9 @@ void printStm(Stm ptr) {
     printf("(");
     printf("%s", ptr->assign.ident);
     switch (ptr->assign.type) {
+    case FLOAT:
+      printf(" FLOAT");
+      break;
     case ID:
       printf(" ID");
       break;
@@ -277,6 +289,7 @@ void printExp(Exp ptr) {
     return;
 
   switch (ptr->tag) {
+  case FLOAT:
   case NUM:
     printf("%f", ptr->val);
     break;

@@ -5,6 +5,7 @@
 #include <string.h>
 
 static int tempCount = 0;
+static int floatsCount = 0;
 static int labelCount = 0;
 static int staticStrCount = 0;
 static instrList *codeList = NULL;
@@ -13,6 +14,7 @@ static char *condLeft = NULL;
 static char *condRight = NULL;
 
 static int used[18];
+static int usedFloats[32];
 
 int emit2(Opcode opc, char *arg1, char *arg2);
 int emitUnary(Opcode opc, char *arg1);
@@ -42,7 +44,10 @@ int emitCompoundIfAndEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 int emitFunction(char *id, char *temp, char *temp2);
 
 char *newTemp();
+void removeTemp(char *temp);
 char *newLabel();
+char *newTempFloat();
+void removeTempFloat(char *temp);
 
 int transStm(Stm stm, vars *, stringLiterals **strs);
 int transExp(Exp exp, char *dest, vars *, stringLiterals **strs);
@@ -62,6 +67,18 @@ char *getVarTemp(char *id, vars *vars) {
   return NULL;
 }
 
+char *newTempFloat() {
+  for (int i = 0; i < 16; i++) {
+    if (usedFloats[i] == 0) {
+      usedFloats[i] = 1;
+      floatsCount++;
+      assert(floatsCount < 16);
+      return strdup(tempFloats[i]);
+    }
+  }
+
+  return NULL;
+}
 char *newTemp() {
   for (int i = 0; i < 18; i++) {
     if (used[i] == 0) {
@@ -120,6 +137,19 @@ char *newStaticString() {
   sprintf(id, "str%d", staticStrCount++);
 
   return id;
+}
+
+void removeTempFloat(char *temp) {
+  if (!temp)
+    return;
+  for (int i = 0; i < 16; i++) {
+    if (strcmp(temp, tempFloats[i]) == 0) {
+      usedFloats[i] = 0;
+      floatsCount--;
+      assert(floatsCount >= 0);
+      return;
+    }
+  }
 }
 
 void removeTemp(char *temp) {
@@ -242,6 +272,24 @@ int emitMoveI(char *dest, int num) {
   return 1;
 }
 
+int convertOpF(const op ope) {
+
+  switch (ope) {
+  case POW:
+    return POWERF;
+
+  case PLUS:
+    return ADDF;
+  case MINUS:
+    return SUBF;
+  case TIMES:
+    return MULTF;
+  case DIV:
+    return DIVIDEF;
+  }
+
+  return -1;
+}
 int convertOp(const op ope, const int immediate) {
 
   switch (ope) {
@@ -306,6 +354,28 @@ int convertOp(const op ope, const int immediate) {
   }
 
   return -1;
+}
+int emitOpF(op ope, char *dest, char *src1, char *src2, double val) {
+  int opConverted = convertOpF(ope);
+  if (opConverted == -1) {
+    fprintf(stderr, "Unable to convert operand\n");
+    return 0;
+  }
+  instruction instr = {opConverted, dest, src1, src2, NULL, 0, val, 0};
+  instrList *newNode = malloc(sizeof(instrList));
+  if (!newNode)
+    return 0;
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
 }
 int emitOp(op ope, char *dest, char *src1, char *src2, int val) {
   int opConverted = convertOp(ope, src2 == NULL);
@@ -437,6 +507,18 @@ vars *transVarDecl(Stm varDecl, vars *vars, stringLiterals **strs, int *error) {
     }
     ret = transExp(varDecl->compound.fst->assign.expr, temp, vars, strs);
   }
+  if (varDecl->compound.fst->assign.type == FLOAT) {
+
+    char *id = strdup(varDecl->compound.fst->assign.ident);
+    char *temp = newTempFloat();
+    vars = addNode(id, temp, vars);
+    if (!vars) {
+      fprintf(stderr, "Error while addind node to vars struct\n");
+      *error = 1;
+      return NULL;
+    }
+    ret = transExp(varDecl->compound.fst->assign.expr, temp, vars, strs);
+  }
   if (varDecl->compound.fst->assign.type == BOOL) {
 
     char *id = strdup(varDecl->compound.fst->assign.ident);
@@ -494,6 +576,8 @@ instrList *generateIR(Prog program, stringLiterals **strs) {
 
   for (int i = 0; i < 18; i++)
     used[i] = 0;
+  for (int i = 0; i < 16; i++)
+    usedFloats[i] = 0;
 
   vars *vars = transVarDecl(program->varDec, NULL, &strsLocal, &error);
   if (error) {
@@ -520,6 +604,8 @@ Exp applyNotToExpr(Exp exp, int neg, vars *vars) {
     return applyNotToExpr(exp->unaryop.exp, 0, vars);
   }
   switch (exp->tag) {
+  case FLOAT:
+    return NULL;
   case NUM:
     if ((int)exp->val)
       exp->val = 0;
@@ -1149,13 +1235,17 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
   switch (stm->tag) {
   case ASSIGN: {
     char *id = getVarTemp(stm->assign.ident, vars);
+    char *temp = NULL;
+    int remove = 0;
+    int removeFloat = 0;
+    int isFloat = 0;
     if (!id) {
       fprintf(stderr, "Unable to find variable to bind the value\n");
       return 0;
     }
     id = strdup(id);
-    char *temp = NULL;
-    int remove = 0;
+    if (id[0] == 'f')
+      isFloat = 1;
     if (stm->assign.expr->tag == ID) {
 
       temp = getVarTemp(stm->assign.expr->id, vars);
@@ -1164,15 +1254,26 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs) {
         return 0;
       }
       temp = strdup(temp);
-    } else {
+      if (temp[0] == 'f')
+        isFloat = 1;
 
+    } else if (isFloat || stm->assign.expr->tag == FLOAT) {
+      temp = newTempFloat();
+      removeFloat = 1;
+      isFloat = 1;
+    } else {
       temp = newTemp();
       remove = 1;
     }
-    int ret =
-        transExp(stm->assign.expr, temp, vars, strs) && emit2(MOVE, id, temp);
+    int ret = transExp(stm->assign.expr, temp, vars, strs);
+    if (stm->assign.expr->tag == FLOAT || isFloat)
+      ret = ret && emit2(MOVEF, id, temp);
+    else
+      ret = ret && emit2(MOVE, id, temp);
     if (remove)
       removeTemp(temp);
+    else if (removeFloat)
+      removeTempFloat(temp);
     return ret;
 
     break;
@@ -1417,7 +1518,10 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
     return 0;
 
   switch (exp->tag) {
-
+  case FLOAT:
+    if (!dest)
+      return -1;
+    return emit2(MOVEF, dest, cFloat);
   case NUM:
     if (!dest)
       return -1;
@@ -1428,7 +1532,6 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
       return -2;
     char *id = getVarTemp(exp->id, vars);
     if (id == NULL) {
-
       if (searchStrLiteralById(exp->id, *strs))
         return emit2(MOVE, dest, exp->id);
       id = exp->id;
@@ -1438,6 +1541,8 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
     if (dest && !strcmp(dest, id))
       break;
 
+    if (id[0] == 'f')
+      return emit2(MOVEF, dest, id);
     return emit2(MOVE, dest, id);
     break;
   }
@@ -1509,7 +1614,8 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
     return 1;
   }
   char *t1 = NULL;
-  int temp1 = 0, temp2 = 0;
+  int temp1 = 0, temp2 = 0, temp1F = 0, temp2F = 0;
+  int isFloat = 0;
   if (exp->binop.left->tag == ID) {
     t1 = getVarTemp(exp->binop.left->id, vars);
     if (!t1) {
@@ -1517,16 +1623,24 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
       return 0;
     }
     t1 = strdup(t1);
+    if (t1[0] == 'f')
+      isFloat = 1;
   } else if (!t1) {
-    t1 = newTemp();
-    temp1 = 1;
+    if (exp->binop.left->tag == FLOAT) {
+      t1 = newTempFloat();
+      temp1F = 1;
+      isFloat = 1;
+    } else {
+      t1 = newTemp();
+      temp1 = 1;
+    }
   }
 
   transExp(exp->binop.left, t1, vars, strs);
 
   int i = transExp(exp->binop.right, NULL, vars, strs);
   char *t2 = NULL;
-  if (i == -1) {
+  if (i == -1 && !isFloat) {
     if (temp1)
       removeTemp(t1);
     return emitOp(exp->binop.op, dest, t1, NULL, (int)exp->binop.right->val);
@@ -1537,18 +1651,32 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs) {
       return 0;
     }
     t2 = strdup(t2);
+    if (t2[0] == 'f')
+      isFloat = 1;
   } else if (i == 0)
     return 0;
   else if (!t2) {
-    t2 = newTemp();
-    temp2 = 1;
+    if (exp->binop.right->tag == FLOAT) {
+      t2 = newTempFloat();
+      temp2F = 1;
+      isFloat = 1;
+    } else {
+      t2 = newTemp();
+      temp2 = 1;
+    }
   }
   transExp(exp->binop.right, t2, vars, strs);
   if (temp1)
     removeTemp(t1);
   if (temp2)
     removeTemp(t2);
+  if (temp1F)
+    removeTempFloat(t1);
+  if (temp2F)
+    removeTempFloat(t2);
 
+  if (isFloat)
+    return emitOpF(exp->binop.op, dest, t1, t2, 0);
   return emitOp(exp->binop.op, dest, t1, t2, 0);
 }
 
@@ -1587,6 +1715,22 @@ void printInstructions(instrList *list) {
       printf("COND %s /= 0 %s %s\n", current->instr.arg1, current->instr.arg3,
              current->instr.arg4);
       break;
+    case SUBF:
+      printf("SUB %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
+    case MULTF:
+      printf("MULT %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
+    case DIVIDEF:
+      printf("DIVIDE %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
+    case ADDF:
+      printf("ADD %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
+      break;
     case SUB:
       printf("SUB %s %s %s\n", current->instr.arg1, current->instr.arg2,
              current->instr.arg3);
@@ -1622,6 +1766,9 @@ void printInstructions(instrList *list) {
     case LOADADRESS:
       printf("LOADADRESS %s %s\n", current->instr.arg1, current->instr.arg2);
       break;
+    case MOVEF:
+      printf("MOVE %s %s\n", current->instr.arg1, current->instr.arg2);
+      break;
     case MOVE:
       printf("MOVE %s %s\n", current->instr.arg1, current->instr.arg2);
       break;
@@ -1636,13 +1783,13 @@ void printInstructions(instrList *list) {
     case MOVEI:
       printf("MOVEI %s %d\n", current->instr.arg1, current->instr.num);
       break;
-    case POWER:
-      printf("POW %s %s %s\n", current->instr.arg1, current->instr.arg2,
-             current->instr.arg3);
-      break;
     case POWERI:
       printf("POW %s %s %d\n", current->instr.arg1, current->instr.arg2,
              current->instr.num);
+    case POWERF:
+    case POWER:
+      printf("POW %s %s %s\n", current->instr.arg1, current->instr.arg2,
+             current->instr.arg3);
       break;
       char *opStr;
       switch (current->instr.binop) {

@@ -11,7 +11,8 @@ struct _entry {
     TBL_STRING = 4,
     TBL_FUNCTION = 8,
     TBL_ID = 16,
-    TBL_ERROR = 32
+    TBL_FLOAT = 32,
+    TBL_ERROR = 64,
   } typeTag;
   unsigned numArgs;
   struct _argType {

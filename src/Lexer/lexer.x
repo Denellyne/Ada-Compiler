@@ -27,6 +27,7 @@ alnum ({digit}|{alpha})
 "String" {printf("%s ",yytext); return TOK_STRING;}
 "Natural" {printf("%s ",yytext); return TOK_INTEGER;}
 "Integer" {printf("%s ",yytext); return TOK_INTEGER;}
+"Float" {printf("%s ",yytext); return TOK_FLOAT;}
 "Boolean" {printf("%s ",yytext); return TOK_BOOL;}
 
 
@@ -65,7 +66,7 @@ alnum ({digit}|{alpha})
 
 
 {digit}+ {printf("%s ",yytext); yylval.num = (double)atoi(yytext); return TOK_NUM;}
-{digit}+"."{digit}+ {printf("%s ",yytext); yylval.num = atof(yytext); return TOK_NUM;}
+{digit}+"."{digit}+ {printf("%s ",yytext); yylval.num = atof(yytext); return TOK_REAL;}
 -{digit}+ {printf("%s ",yytext); yylval.num = (double)atoi(yytext); return TOK_NUM;}
 -{digit}+"."{digit}+ {printf("%s ",yytext); yylval.num = atof(yytext); return TOK_NUM;}
 

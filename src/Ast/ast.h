@@ -19,7 +19,7 @@ typedef enum {
   GE // operadores de comparação
 } op;
 struct _exp {
-  enum { ID, NUM, BINOP, BOOL, STRLITERAL, UNARYOP } tag;
+  enum { ID, NUM, BINOP, BOOL, STRLITERAL, UNARYOP, FLOAT } tag;
   union {
     double val; // for NUM
     char *id;   // for ID
@@ -101,6 +101,7 @@ Exp mkStringLiteral(char *stringLiteral);
 Exp mkId(char *id);
 Exp mkBool(int b);
 Exp mkNum(double v);
+Exp mkFloat(double v);
 Exp mkBinOp(Exp lExp, op op, Exp rExp);
 Exp mkUnaryOp(Exp exp, op op);
 Stm mkCompound(Stm lStm, Stm rStm);

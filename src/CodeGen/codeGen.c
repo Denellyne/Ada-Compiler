@@ -208,6 +208,11 @@ int printInstr(FILE *file, instrList *instrs) {
                   current->instr.arg2, current->instr.arg3) < 0)
         return 0;
       break;
+    case ADDF:
+      if (fprintf(file, "add.d $%s,$%s, $%s\n", current->instr.arg1,
+                  current->instr.arg2, current->instr.arg3) < 0)
+        return 0;
+      break;
     case ADDI:
       if (fprintf(file, "addiu $%s,$%s, %d\n", current->instr.arg1,
                   current->instr.arg2, current->instr.num) < 0)
@@ -215,6 +220,11 @@ int printInstr(FILE *file, instrList *instrs) {
       break;
     case LOADADRESS:
       if (fprintf(file, "la $%s, %s\n", current->instr.arg1,
+                  current->instr.arg2) < 0)
+        return 0;
+      break;
+    case MOVEF:
+      if (fprintf(file, "mov.d $%s, $%s\n", current->instr.arg1,
                   current->instr.arg2) < 0)
         return 0;
       break;

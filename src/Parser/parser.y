@@ -25,7 +25,7 @@ void yyerror (struct _prog** prog,char const *);
 %type <args> args
 %type <tag> varTypes
 // %define api.value.type {double}
-%token <num> TOK_NUM 
+%token <num> TOK_NUM TOK_REAL
 %token <str> TOK_ID
 %token <str> TOK_STRLITERAL
 
@@ -62,6 +62,7 @@ void yyerror (struct _prog** prog,char const *);
 %token TOK_END_STATEMENT
 
 %token TOK_INTEGER
+%token TOK_FLOAT
 %token TOK_STRING
 %token TOK_BOOL
 
@@ -111,6 +112,7 @@ variable : TOK_ID TOK_COLON varTypes TOK_ASSIGN expr TOK_END_STATEMENT variable 
 
 varTypes : TOK_STRING {$$ = 4;}
          | TOK_INTEGER {$$ = 1;}
+         | TOK_FLOAT {$$ = 6;}
          | TOK_BOOL {$$ = 3;}
          ;
 
@@ -168,6 +170,7 @@ expr : term {$$ =$1;}
      ;
 
 term : TOK_NUM {$$ = mkNum($1);}
+     | TOK_REAL {$$ = mkFloat($1);}
      | TOK_LP expr TOK_RP {$$ = $2;}
      | TOK_TRUE {$$ = mkBool(1);}
      | TOK_FALSE {$$ = mkBool(0);}

@@ -10,6 +10,8 @@
 int convertType(int type) {
 
   switch (type) {
+  case FLOAT:
+    return TBL_FLOAT;
   case NUM:
     return TBL_INT;
   case STRLITERAL:
@@ -34,6 +36,8 @@ int checkType(Table tbl, char *name) {
 }
 int checkExprType(Table tbl, Exp expr) {
   switch (expr->tag) {
+  case FLOAT:
+    return TBL_FLOAT;
   case BOOL:
     return TBL_BOOL;
   case NUM:
@@ -50,30 +54,42 @@ int checkExprType(Table tbl, Exp expr) {
         return TBL_ERROR;
       return ret;
     }
-    if (expr->unaryop.op == PLUS) {
+    if (expr->unaryop.op == PLUS || expr->unaryop.op == MINUS) {
       int ret = checkExprType(tbl, expr->unaryop.exp);
-      if (ret != TBL_INT)
-        return TBL_ERROR;
-      return TBL_INT;
-    }
-    if (expr->unaryop.op == MINUS) {
-      int ret = checkExprType(tbl, expr->unaryop.exp);
-      if (ret != TBL_INT)
-        return TBL_ERROR;
-      return TBL_INT;
+      if (ret == TBL_INT)
+        return TBL_INT;
+      else if (ret == TBL_FLOAT)
+        return TBL_FLOAT;
+      return TBL_ERROR;
     }
   } break;
   case BINOP: {
 
     switch (expr->binop.op) {
-    case POW:
+    case POW: {
+      int typeL = checkExprType(tbl, expr->binop.left);
+      int typeR = checkExprType(tbl, expr->binop.right);
+      if (typeL & (TBL_INT | TBL_FLOAT) && (typeR & TBL_INT)) {
+        if (typeL == TBL_FLOAT)
+          return TBL_FLOAT;
+        return TBL_INT;
+      }
+      return TBL_ERROR;
+    } break;
     case PLUS:
     case MINUS:
     case TIMES:
-    case DIV:
-      return checkExprType(tbl, expr->binop.left) &
-             checkExprType(tbl, expr->binop.right) & TBL_INT;
-      break;
+    case DIV: {
+
+      int typeL = checkExprType(tbl, expr->binop.left);
+      int typeR = checkExprType(tbl, expr->binop.right);
+      if (typeL & (TBL_INT | TBL_FLOAT) && (typeR & (TBL_FLOAT | TBL_INT))) {
+        if (typeL == TBL_FLOAT && typeR == TBL_FLOAT)
+          return TBL_FLOAT;
+        return TBL_INT;
+      }
+      return TBL_ERROR;
+    } break;
     case XOR: {
 
       int left = checkExprType(tbl, expr->binop.left);

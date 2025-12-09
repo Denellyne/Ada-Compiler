@@ -5,6 +5,10 @@
 static const char *temps[18] = {"t0", "t1", "t2", "t3", "t4", "t5",
                                 "t6", "t7", "t8", "t9", "s0", "s1",
                                 "s2", "s3", "s4", "s5", "s6", "s7"};
+static const char *tempFloats[16] = {
+    "f0",  "f2",  "f4",  "f6",  "f8",  "f10", "f12", "f14",
+    "f16", "f18", "f20", "f22", "f24", "f26", "f28", "f30",
+};
 
 typedef enum {
   MOVE,
@@ -43,7 +47,13 @@ typedef enum {
   XRI,
   SAVEREGISTERS,
   LOADREGISTERS,
-  BNEZ = 64,
+  MOVEF,
+  ADDF,
+  SUBF,
+  DIVIDEF,
+  MULTF,
+  POWERF,
+  BNEZ = 128,
 } Opcode;
 struct _variables {
   char *id;
@@ -65,6 +75,7 @@ struct _instruction {
   char *arg3;
   char *arg4;
   int num;
+  double val;
   op binop;
 };
 typedef struct _instruction instruction;
