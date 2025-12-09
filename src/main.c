@@ -69,6 +69,7 @@ int main(int argc, char *argv[]) {
   if (!generateASM(argv[1], tbl, prog->varDec, instrs, strs, floats)) {
     freeInstructions(&instrs);
     freeStrings(&strs);
+    freeFloats(&floats);
     fprintf(stderr,
             "Unable to generate the assembly for the source code given\n");
     return EXIT_FAILURE;

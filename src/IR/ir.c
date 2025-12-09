@@ -25,16 +25,12 @@ int emitCond(op op, char *src1, char *src2, char *label1, char *label2,
              int val);
 int emitLabel(char *label);
 int emitJump(char *label);
-int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
-                   stringLiterals **strs, floatLiterals **floats);
 int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                       stringLiterals **strs, floatLiterals **floats);
 int emitCompoundWhileAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                          stringLiterals **strs, floatLiterals **floats);
 int emitCompoundWhileOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                         stringLiterals **strs, floatLiterals **floats);
-int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
-                      stringLiterals **strs, floatLiterals **floats);
 int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                      stringLiterals **strs, floatLiterals **floats);
 int emitCompoundIfOrEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
@@ -925,48 +921,6 @@ int emitCompoundIfEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
   }
   return 0;
 }
-int emitCompoundIf(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
-                   stringLiterals **strs, floatLiterals **floats) {
-  int neg = 0;
-  if (exp->tag == UNARYOP && exp->unaryop.op == NOT) {
-
-    exp = applyNotToExpr(exp->unaryop.exp, 1, vars);
-    if (!exp) {
-      fprintf(stderr, "Expression returned after applying Not is NULL\n");
-      return 0;
-    }
-  }
-
-  if (exp->tag == BINOP && exp->binop.op == AND)
-    return emitCompoundIfAnd(exp, labelTrue, labelFalse, vars, strs, floats);
-  else if (exp->tag == BINOP && exp->binop.op == OR)
-    return emitCompoundIfOr(exp, labelTrue, labelFalse, vars, strs, floats);
-  else if (exp->tag == BINOP) {
-    int ret = transExp(exp, NULL, vars, strs, floats);
-    int val = 0;
-    if (ret == -1) {
-      ret = 1;
-      val = exp->binop.right->val;
-    }
-    return ret && emitCond(exp->binop.op, condLeft, condRight, labelTrue,
-                           labelFalse, val);
-  } else if (exp->tag == ID) {
-    char *id = getVarTemp(exp->id, vars);
-    if (!id)
-      return 0;
-
-    id = strdup(id);
-    return transExp(exp, id, vars, strs, floats) &&
-           emitCond(NEQ, id, "zero", labelTrue, labelFalse, 0);
-  } else if (exp->tag == BOOL || exp->tag == NUM) {
-    char *temp = newTemp();
-    int ret = transExp(exp, temp, vars, strs, floats) &&
-              emitCond(NEQ, temp, "zero", labelTrue, labelFalse, 0);
-    removeTemp(temp);
-    return ret;
-  }
-  return 0;
-}
 int emitCompoundWhileAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                          stringLiterals **strs, floatLiterals **floats) {
   if (exp->tag == BINOP && exp->binop.op == AND) {
@@ -1231,147 +1185,6 @@ int emitCompoundIfAndEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
                            labelFalse, val);
   }
   return emitCompoundIfEx(exp, labelTrue, labelFalse, vars, strs, neg, floats);
-}
-int emitCompoundIfAnd(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
-                      stringLiterals **strs, floatLiterals **floats) {
-  if (exp->tag == BINOP && exp->binop.op == AND) {
-    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT) {
-
-      exp->binop.left = applyNotToExpr(exp->binop.left->unaryop.exp, 1, vars);
-      if (!exp->binop.left) {
-        fprintf(stderr, "Expression returned after applying Not is NULL\n");
-        return 0;
-      }
-    }
-
-    if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
-      return emitCompoundIfAnd(exp->binop.left, labelTrue, labelFalse, vars,
-                               strs, floats) &&
-             emitCompoundIfAnd(exp->binop.right, labelTrue, labelFalse, vars,
-                               strs, floats);
-    else if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == OR)
-      return emitCompoundIfOr(exp->binop.left, labelTrue, labelFalse, vars,
-                              strs, floats) &&
-             emitCompoundIfAnd(exp->binop.right, labelTrue, labelFalse, vars,
-                               strs, floats);
-
-    char *labelAndTrue = newLabel();
-    char *id = NULL;
-    if (exp->binop.left->tag == BOOL || exp->binop.left->tag == NUM) {
-      id = newTemp();
-      int ret = transExp(exp->binop.left, id, vars, strs, floats) &&
-                emitCond(NEQ, id, "zero", labelAndTrue, labelFalse, 0) &&
-                emitLabel(labelAndTrue);
-      removeTemp(id);
-      return ret && emitCompoundIf(exp->binop.right, labelTrue, labelFalse,
-                                   vars, strs, floats);
-    } else if (exp->binop.left->tag == ID) {
-      char *id = getVarTemp(exp->binop.left->id, vars);
-      if (!id)
-        return 0;
-
-      id = strdup(id);
-      return transExp(exp->binop.left, id, vars, strs, floats) &&
-             emitCond(NEQ, id, "zero", labelAndTrue, labelFalse, 0) &&
-             emitLabel(labelAndTrue) &&
-             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs,
-                            floats);
-    }
-    int ret = transExp(exp->binop.left, NULL, vars, strs, floats);
-    int val = 0;
-    if (ret == -1) {
-      ret = 1;
-      val = exp->binop.left->binop.right->val;
-    }
-    ret = ret &&
-          emitCond(exp->binop.left->binop.op, condLeft, condRight, labelAndTrue,
-                   labelFalse, val) &&
-          emitLabel(labelAndTrue) &&
-          emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs,
-                         floats);
-    return ret;
-  }
-  if (exp->tag == BINOP && exp->binop.op != OR) {
-    int ret = transExp(exp, NULL, vars, strs, floats);
-    int val = 0;
-    if (ret == -1) {
-      ret = 1;
-      val = exp->binop.right->val;
-    }
-    return ret && emitCond(exp->binop.op, condLeft, condRight, labelTrue,
-                           labelFalse, val);
-  }
-  return emitCompoundIf(exp, labelTrue, labelFalse, vars, strs, floats);
-  return 0;
-}
-int emitCompoundIfOr(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
-                     stringLiterals **strs, floatLiterals **floats) {
-  if (exp->tag == BINOP && exp->binop.op == OR) {
-    if (exp->binop.left->tag == UNARYOP && exp->binop.left->unaryop.op == NOT) {
-
-      exp->binop.left = applyNotToExpr(exp->binop.left->unaryop.exp, 1, vars);
-      if (!exp->binop.left) {
-
-        fprintf(stderr, "Expression returned after applying Not is NULL\n");
-        return 0;
-      }
-    }
-
-    if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == AND)
-      return emitCompoundIfAnd(exp->binop.left, labelTrue, labelFalse, vars,
-                               strs, floats) &&
-             emitCompoundIfOr(exp->binop.right, labelTrue, labelFalse, vars,
-                              strs, floats);
-    else if (exp->binop.left->tag == BINOP && exp->binop.left->binop.op == OR)
-      return emitCompoundIfOr(exp->binop.left, labelTrue, labelFalse, vars,
-                              strs, floats) &&
-             emitCompoundIfOr(exp->binop.right, labelTrue, labelFalse, vars,
-                              strs, floats);
-
-    if (exp->binop.left->tag == BOOL || exp->binop.left->tag == NUM) {
-      char *temp = newTemp();
-      int ret = transExp(exp->binop.left, temp, vars, strs, floats) &&
-                emitCond(NEQ, temp, "zero", labelFalse, labelTrue, 0);
-      removeTemp(temp);
-      return ret && emitCompoundIf(exp->binop.right, labelTrue, labelFalse,
-                                   vars, strs, floats);
-    }
-
-    if (exp->binop.left->tag == ID) {
-      char *id = getVarTemp(exp->binop.left->id, vars);
-      if (!id)
-        return 0;
-
-      id = strdup(id);
-      return transExp(exp->binop.left, id, vars, strs, floats) &&
-             emitCond(NEQ, id, "zero", labelFalse, labelTrue, 0) &&
-             emitCompoundIf(exp->binop.right, labelTrue, labelFalse, vars, strs,
-                            floats);
-    }
-    int ret = transExp(exp->binop.left, NULL, vars, strs, floats);
-    int val = 0;
-    if (ret == -1) {
-      ret = 1;
-      val = exp->binop.left->binop.right->val;
-    }
-    return ret &&
-           emitCond(exp->binop.left->binop.op, condLeft, condRight, labelFalse,
-                    labelTrue, val) &&
-           emitCompoundIfOr(exp->binop.right, labelTrue, labelFalse, vars, strs,
-                            floats);
-  }
-  if (exp->tag == BINOP && exp->binop.op != AND) {
-    int ret = transExp(exp, NULL, vars, strs, floats);
-    int val = 0;
-    if (ret == -1) {
-      ret = 1;
-      val = exp->binop.right->val;
-    }
-    return ret && emitCond(exp->binop.op, condLeft, condRight, labelFalse,
-                           labelTrue, val);
-  }
-  return emitCompoundIf(exp, labelTrue, labelFalse, vars, strs, floats);
-  return 0;
 }
 
 int transStm(Stm stm, vars *vars, stringLiterals **strs,
