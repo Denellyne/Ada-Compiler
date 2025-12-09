@@ -3,8 +3,8 @@ src/lex.yy.c
 src/parser.tab.*
 bin/
 *.bin
-*/mars.jar
-tests/other
+*.jar
+tests/other/aiTests/ada_tests/
 tests/*.txt
 tests/*.bin
 *.adb
