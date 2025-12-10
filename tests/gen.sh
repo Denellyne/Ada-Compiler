@@ -147,6 +147,57 @@ end Main;' 'aaatest
 lindo
 5' 'lindo'
 
+create blanco 'procedure Main is
+  z : Integer;
+  p : String;
+  k : String := "oSASASa";
+  l : String := "EE";
+begin
+  Get_Line (k, z);
+  Put_Line (k);
+  l := "ola";
+  l := "ola";
+  l := "ola";
+  l := "ola";
+  l := "ola";
+  l := "ola";
+  l := "ola";
+  l := "adeus";
+  l := k;
+  Put_Line (l);
+  Put_Line (k);
+end Main;' 'blanco
+blanco
+blanco
+' 'blanco'
+
+create blanco2 'procedure Main is
+  score : Integer := 75;
+begin
+  if score >= 60 then
+    Put_Line("Aprovado");
+  else
+    if score >= 50 then
+      Put_Line("Suficiente");
+    else
+      Put_Line("Reprovado");
+    end if;
+  end if;
+end Main;' 'Aprovado' ''
+
+create blanco3 'procedure Main is
+  x : Integer := -5;
+  y : Integer := 10;
+  b : Boolean := True;
+begin
+
+  if (not (x = y)) and (x > -y) or (not b) then
+    Put_Line("Resultado verdadeiro");
+  else
+    Put_Line("Resultado falso");
+  end if;
+end Main;' 'Resultado verdadeiro' ''
+
 create whilesmall 'procedure Main is
   V : Integer := 10;
 begin

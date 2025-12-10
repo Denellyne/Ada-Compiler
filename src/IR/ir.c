@@ -204,6 +204,15 @@ registers *addReg(char *id, registers *regs) {
   regs->next->val = counter;
   return head;
 }
+char *getStringTemp(char *str, stringLiterals **strs) {
+  stringLiterals *head = *strs;
+  while (head) {
+    if (!strcmp(str, head->str))
+      return head->id;
+    head = head->next;
+  }
+  return NULL;
+}
 int searchRegsById(char *id, registers *regs) {
   registers *head = regs;
   while (head) {
@@ -1300,7 +1309,7 @@ int emitCompoundIfAndEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
     ret = ret &&
           emitCond(exp->binop.left->binop.op, condLeft, condRight, labelAnd,
                    labelFalse, val) &&
-          emitLabel(labelAnd) &&
+          emitJump(labelFalse) && emitLabel(labelAnd) &&
           emitCompoundIfAndEx(exp->binop.right, labelTrue, labelFalse, vars,
                               strs, neg, floats);
     return ret;
@@ -1417,12 +1426,10 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
 
       ret = ret && emitLabel(trueLFalse);
       if (stm->ifStmt.elseBranch != NULL)
-        ret = ret && transStm(stm->ifStmt.elseBranch, vars, strs, floats) &&
-              emitJump(labelEnd);
+        ret = ret && transStm(stm->ifStmt.elseBranch, vars, strs, floats);
 
       ret = ret && emitJump(labelEnd) && emitLabel(trueLTrue) &&
-            transStm(stm->ifStmt.thenBranch, vars, strs, floats) &&
-            emitJump(labelEnd);
+            transStm(stm->ifStmt.thenBranch, vars, strs, floats);
 
     } else {
       ret = ret && emitLabel(trueLTrue) &&
@@ -1647,7 +1654,9 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
     return transBinOp(exp, dest, vars, strs, floats);
     break;
   case STRLITERAL: {
-    char *id = getVarTemp(exp->id, vars);
+    char *id = getStringTemp(exp->str, strs);
+    if (!id)
+      id = getVarTemp(exp->id, vars);
     if (!id) {
       id = newStaticString();
       *strs = addString(id, exp->str, *strs);
@@ -1662,7 +1671,16 @@ int transExp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
     return emit2(LOADADRESS, dest, id);
   } break;
   case UNARYOP:
-    return transExp(exp->unaryop.exp, dest, vars, strs, floats);
+    switch (exp->unaryop.op) {
+    case NOT:
+    case PLUS:
+      return transExp(exp->unaryop.exp, dest, vars, strs, floats);
+    case MINUS:
+      return transExp(exp->unaryop.exp, dest, vars, strs, floats) &&
+             emitOp(PLUS, dest, dest, NULL, -1);
+    default:
+      return transExp(exp->unaryop.exp, dest, vars, strs, floats);
+    }
     break;
   }
   return 1;

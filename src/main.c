@@ -37,7 +37,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Unable to add static function to table\n");
     return EXIT_FAILURE;
   }
-  tbl = addEntry(tbl, "Put_Num", TBL_FUNCTION, 1, TBL_INT | TBL_BOOL);
+  tbl =
+      addEntry(tbl, "Put_Num", TBL_FUNCTION, 1, TBL_INT | TBL_BOOL | TBL_FLOAT);
   if (!tbl) {
     fprintf(stderr, "Unable to add static function to table\n");
     return EXIT_FAILURE;

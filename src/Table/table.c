@@ -317,7 +317,7 @@ int validateAST(Table tbl, Stm stm) {
         }
       }
       int exprType = checkExprType(tbl, head->arg);
-      if (((headArg->typeTag & (TBL_ID - 1)) && exprType) == 0) {
+      if ((headArg->typeTag & exprType) == 0) {
         fprintf(stderr, "Passed argument of wrong type to function %s\n",
                 stm->function.ident);
         return 0;
