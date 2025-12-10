@@ -18,6 +18,12 @@ parser :
 lex : 
 	@flex Lexer/lexer.x
 
+release : parser lex $(OBJ)
+	@echo "Builidng executable"
+	@mkdir -p ../bin
+	$(CXX) -O2 -o $(OUTPUT) $(OBJ) -lm
+	@echo "Done"
+
 build : parser lex $(OBJ)
 	@echo "Builidng executable"
 	@mkdir -p ../bin

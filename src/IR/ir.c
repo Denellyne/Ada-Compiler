@@ -148,7 +148,7 @@ char *getVarTemp(char *id, vars *vars) {
 
 char *newTempFloat() {
   for (int i = 0; i < 14; i++) {
-    if (usedFloats[i] == 0) {
+    if (!usedFloats[i]) {
       usedFloats[i] = 1;
       floatsCount++;
       assert(floatsCount < 14);
@@ -160,7 +160,7 @@ char *newTempFloat() {
 }
 char *newTemp() {
   for (int i = 0; i < 18; i++) {
-    if (used[i] == 0) {
+    if (!used[i]) {
       used[i] = 1;
       tempCount++;
       assert(tempCount < 18);
@@ -225,6 +225,8 @@ floatLiterals *addFloat(const double val, floatLiterals *floats) {
 }
 
 stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
+  if (!str)
+    return NULL;
 
   if (!strs) {
     strs = (stringLiterals *)malloc(sizeof(stringLiterals));
@@ -234,10 +236,7 @@ stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
     }
     strs->next = NULL;
     strs->id = strdup(id);
-    if (!str)
-      return NULL;
-    else
-      strs->str = strdup(str);
+    strs->str = strdup(str);
     return strs;
   }
   stringLiterals *head = strs;
@@ -257,10 +256,7 @@ stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
   strs->next->next = NULL;
 
   strs->next->id = strdup(id);
-  if (!str)
-    return NULL;
-  else
-    strs->next->str = strdup(str);
+  strs->next->str = strdup(str);
   return head;
 }
 
@@ -305,8 +301,10 @@ int emitFunction(char *id, char *temp, char *temp2) {
 
   instruction instr = {CALL, id, temp, temp2, NULL, 0};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -322,8 +320,10 @@ int emitFunction(char *id, char *temp, char *temp2) {
 int emit1(Opcode opc, int val) {
   instruction instr = {opc, NULL, NULL, NULL, NULL, val};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -340,8 +340,10 @@ int emit1(Opcode opc, int val) {
 int emit2(Opcode opc, char *arg1, char *arg2) {
   instruction instr = {opc, arg1, arg2, NULL, NULL, 0};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -358,8 +360,10 @@ int emit2(Opcode opc, char *arg1, char *arg2) {
 int emit3(Opcode opc, char *arg1, char *arg2, char *arg3) {
   instruction instr = {opc, arg1, arg2, arg3, NULL, 0};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -375,8 +379,10 @@ int emit3(Opcode opc, char *arg1, char *arg2, char *arg3) {
 int emitUnary(Opcode opc, char *arg1) {
   instruction instr = {UNARY, arg1, arg1, NULL, NULL, 0, opc};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -393,8 +399,10 @@ int emitUnary(Opcode opc, char *arg1) {
 int emitMoveI(char *dest, int num) {
   instruction instr = {MOVEI, dest, NULL, NULL, NULL, num};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -430,8 +438,6 @@ int convertOpF(const op ope) {
 int convertOp(const op ope, const int immediate) {
 
   switch (ope) {
-  case BNEZ:
-    return BNEZ;
 
   case POW:
     if (immediate)
@@ -500,8 +506,10 @@ int emitOpF(op ope, char *dest, char *src1, char *src2, double val) {
   }
   instruction instr = {opConverted, dest, src1, src2, NULL, 0, val, 0};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -522,8 +530,10 @@ int emitOp(op ope, char *dest, char *src1, char *src2, int val) {
   }
   instruction instr = {opConverted, dest, src1, src2, NULL, val, 0};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -540,8 +550,10 @@ int emitOp(op ope, char *dest, char *src1, char *src2, int val) {
 int emitLabel(char *label) {
   instruction instr = {LABEL, label, NULL, NULL, NULL, 0};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -558,8 +570,10 @@ int emitLabel(char *label) {
 int emitJump(char *label) {
   instruction instr = {JUMP, label, NULL, NULL, NULL, 0};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -573,14 +587,36 @@ int emitJump(char *label) {
   return 1;
 }
 
+int emitBNEZ(char *src1, char *src2, char *label1, char *label2, int val) {
+
+  instruction instr = {BNEZ, src1, src2, label1, label2, val, 0};
+  instrList *newNode = malloc(sizeof(instrList));
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
+    return 0;
+  }
+  newNode->instr = instr;
+  newNode->next = NULL;
+
+  if (codeList == NULL) {
+    codeList = newNode;
+    lastInstr = newNode;
+  } else {
+    lastInstr->next = newNode;
+    lastInstr = newNode;
+  }
+  return 1;
+}
 int emitCond(op op, char *src1, char *src2, char *label1, char *label2,
              int val) {
   Opcode opConverted = convertOp(op, src2 == NULL);
 
   instruction instr = {opConverted, src1, src2, label1, label2, val, 0};
   instrList *newNode = malloc(sizeof(instrList));
-  if (!newNode)
+  if (!newNode) {
+    fprintf(stderr, "Unable to allocate memory for new Instruction\n");
     return 0;
+  }
   newNode->instr = instr;
   newNode->next = NULL;
 
@@ -597,7 +633,7 @@ int emitCond(op op, char *src1, char *src2, char *label1, char *label2,
 char *newLabel() {
   char *label = malloc(10);
   if (!label) {
-    fprintf(stderr, "Unable to malloc memory for new label\n");
+    fprintf(stderr, "Unable to allocate memory for new label\n");
     return NULL;
   }
   sprintf(label, "L%d", labelCount++);
@@ -608,7 +644,7 @@ vars *addNode(char *id, char *temp, vars *vars) {
   if (!vars) {
     vars = (struct _variables *)malloc(sizeof(struct _variables));
     if (!vars) {
-      fprintf(stderr, "Unable to malloc memory for variables struct\n");
+      fprintf(stderr, "Unable to allocate memory for variables struct\n");
       return NULL;
     }
     vars->next = NULL;
@@ -626,7 +662,7 @@ vars *addNode(char *id, char *temp, vars *vars) {
 
   vars->next = (struct _variables *)malloc(sizeof(struct _variables));
   if (!vars->next) {
-    fprintf(stderr, "Unable to malloc memory for variables struct\n");
+    fprintf(stderr, "Unable to malloc allocate for variables struct\n");
     return NULL;
   }
   vars->next->next = NULL;
@@ -651,7 +687,7 @@ vars *transVarDecl(Stm varDecl, vars *vars, stringLiterals **strs,
     char *temp = newTemp();
     vars = addNode(id, temp, vars);
     if (!vars) {
-      fprintf(stderr, "Error while addind node to vars struct\n");
+      fprintf(stderr, "Error while adding node to vars struct\n");
       *error = 1;
       return NULL;
     }
@@ -716,11 +752,17 @@ vars *transVarDecl(Stm varDecl, vars *vars, stringLiterals **strs,
 void printVars(vars *vars) {
   struct _variables *head = vars;
   while (head) {
-
     printf("%s %s\n", head->id, head->temp);
     head = head->next;
   }
 }
+void clearUsedArrays() {
+  for (int i = 0; i < 18; i++)
+    used[i] = 0;
+  for (int i = 0; i < 14; i++)
+    usedFloats[i] = 0;
+}
+
 instrList *generateIR(Prog program, stringLiterals **strs,
                       floatLiterals **floats) {
 
@@ -733,17 +775,18 @@ instrList *generateIR(Prog program, stringLiterals **strs,
   stringLiterals *strsLocal = NULL;
   floatLiterals *floatsLocal = NULL;
   floatsLocal = addFloat(1, floatsLocal);
+  if (!floatsLocal) {
+    fprintf(stderr, "Unable to add static float to floatLiterals struct\n");
+    return 0;
+  }
+
   strsLocal =
       addString("askInputStr", "\"Enter string (max 64 chars): \"", *strs);
   if (!strsLocal) {
     fprintf(stderr, "Unable to add static string to stringLiterals struct\n");
     return 0;
   }
-
-  for (int i = 0; i < 18; i++)
-    used[i] = 0;
-  for (int i = 0; i < 14; i++)
-    usedFloats[i] = 0;
+  clearUsedArrays();
 
   vars *vars =
       transVarDecl(program->varDec, NULL, &strsLocal, &floatsLocal, &error);
@@ -753,8 +796,11 @@ instrList *generateIR(Prog program, stringLiterals **strs,
   }
   // printVars(vars);
 
-  if (!transStm(program->statements, vars, &strsLocal, &floatsLocal))
+  if (!transStm(program->statements, vars, &strsLocal, &floatsLocal)) {
+    fprintf(stderr, "Unable to convert statements into IR\n");
+    freeVariables(&vars);
     return 0;
+  }
 
   *strs = strsLocal;
   *floats = floatsLocal;
@@ -895,12 +941,11 @@ int emitCompoundWhile(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 
     id = strdup(id);
     return transExp(exp, id, vars, strs, floats) &&
-           emitCond(BNEZ, id, NULL, labelTrue, labelFalse, 0) &&
-           emitJump(labelFalse);
+           emitBNEZ(id, NULL, labelTrue, labelFalse, 0) && emitJump(labelFalse);
   } else if (exp->tag == BOOL || exp->tag == NUM) {
     char *temp = newTemp();
     int ret = transExp(exp, temp, vars, strs, floats) &&
-              emitCond(BNEZ, temp, NULL, labelTrue, labelFalse, 0) &&
+              emitBNEZ(temp, NULL, labelTrue, labelFalse, 0) &&
               emitJump(labelFalse);
     removeTemp(temp);
     return ret;
@@ -1094,7 +1139,7 @@ int emitCompoundIfOrEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
     if (exp->binop.left->tag == BOOL || exp->binop.left->tag == NUM) {
       char *temp = newTemp();
       int ret = transExp(exp->binop.left, temp, vars, strs, floats) &&
-                emitCond(BNEZ, temp, NULL, labelTrue, labelOr, 0) &&
+                emitBNEZ(temp, NULL, labelTrue, labelOr, 0) &&
                 emitLabel(labelOr);
       removeTemp(temp);
       return ret && emitCompoundIfOrEx(exp->binop.right, labelTrue, labelFalse,
@@ -1108,8 +1153,7 @@ int emitCompoundIfOrEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 
       id = strdup(id);
       return transExp(exp->binop.left, id, vars, strs, floats) &&
-             emitCond(BNEZ, id, NULL, labelTrue, labelOr, 0) &&
-             emitLabel(labelOr) &&
+             emitBNEZ(id, NULL, labelTrue, labelOr, 0) && emitLabel(labelOr) &&
              emitCompoundIfOrEx(exp->binop.right, labelTrue, labelFalse, vars,
                                 strs, neg, floats);
     }
@@ -1178,7 +1222,7 @@ int emitCompoundIfAndEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
     if (exp->binop.left->tag == BOOL || exp->binop.left->tag == NUM) {
       id = newTemp();
       int ret = transExp(exp->binop.left, id, vars, strs, floats) &&
-                emitCond(BNEZ, id, NULL, labelAnd, labelFalse, 0) &&
+                emitBNEZ(id, NULL, labelAnd, labelFalse, 0) &&
                 emitJump(labelFalse) && emitLabel(labelAnd);
       removeTemp(id);
       return ret && emitCompoundIfAndEx(exp->binop.right, labelTrue, labelFalse,
@@ -1190,7 +1234,7 @@ int emitCompoundIfAndEx(Exp exp, char *labelTrue, char *labelFalse, vars *vars,
 
       id = strdup(id);
       return transExp(exp->binop.left, id, vars, strs, floats) &&
-             emitCond(BNEZ, id, NULL, labelAnd, labelFalse, 0) &&
+             emitBNEZ(id, NULL, labelAnd, labelFalse, 0) &&
              emitJump(labelFalse) && emitLabel(labelAnd) &&
              emitCompoundIfAndEx(exp->binop.right, labelTrue, labelFalse, vars,
                                  strs, neg, floats);
@@ -1376,7 +1420,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
 
       id = strdup(id);
       int ret = transExp(stm->whileStmt.cond, id, vars, strs, floats) &&
-                emitCond(BNEZ, id, NULL, labelBody, labelEnd, 0) &&
+                emitBNEZ(id, NULL, labelBody, labelEnd, 0) &&
                 emitJump(labelEnd) && emitLabel(labelBody) &&
                 transStm(stm->whileStmt.body, vars, strs, floats) &&
                 emitJump(labelFalse);
@@ -1386,7 +1430,7 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
     if (stm->whileStmt.cond->tag == BOOL || stm->whileStmt.cond->tag == NUM) {
       temp = newTemp();
       int ret = transExp(stm->whileStmt.cond, temp, vars, strs, floats) &&
-                emitCond(BNEZ, temp, NULL, labelBody, labelEnd, 0) &&
+                emitBNEZ(temp, NULL, labelBody, labelEnd, 0) &&
                 emitJump(labelEnd) && emitLabel(labelBody) &&
                 transStm(stm->whileStmt.body, vars, strs, floats) &&
                 emitJump(labelFalse);
@@ -1415,7 +1459,6 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
            emitOp(PLUS, stm->ident, temp1, temp2, 0);
     break;
   }
-
   case FUNCTION: {
 
     int tag = stm->function.args->arg->tag;
@@ -1428,7 +1471,6 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
     char *id2 = NULL;
     int remove = 0;
     int remove2 = 0;
-    int gLine = 0;
     int isFloat = 0;
     int isFloat2 = 0;
 
@@ -1478,7 +1520,10 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
       removeTempFloat(temp2);
 
     if (!strcmp(stm->function.ident, "Get_Line"))
-      gLine = 1;
+      return ret && emit1(SAVEREGISTERS, tempCount) &&
+             emitFunction(stm->function.ident, dst1, dst2) &&
+             emit1(LOADREGISTERS, tempCount) && emit2(MOVE, id1, dst1) &&
+             emit2(MOVE, id2, dst2);
     else if (!strcmp(stm->function.ident, "Put_Num")) {
       if (isFloat)
         ret = ret && emitMoveI("a1", 1);
@@ -1486,11 +1531,6 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
         ret = ret && emitMoveI("a1", 0);
     }
 
-    if (gLine)
-      return ret && emit1(SAVEREGISTERS, tempCount) &&
-             emitFunction(stm->function.ident, dst1, dst2) &&
-             emit1(LOADREGISTERS, tempCount) && emit2(MOVE, id1, dst1) &&
-             emit2(MOVE, id2, dst2);
     return ret && emit1(SAVEREGISTERS, tempCount) &&
            emitFunction(stm->function.ident, dst1, dst2) &&
            emit1(LOADREGISTERS, tempCount);
@@ -1640,7 +1680,7 @@ int transBinOp(Exp exp, char *dest, vars *vars, stringLiterals **strs,
   else if (temp2 && isFloat2)
     removeTempFloat(t2);
 
-  if (isFloat)
+  if (isFloat || isFloat2)
     return emitOpF(exp->binop.op, dest, t1, t2, 0);
   return emitOp(exp->binop.op, dest, t1, t2, 0);
 }
@@ -1767,6 +1807,7 @@ void printInstructions(instrList *list) {
     case POWERI:
       printf("POW %s %s %d\n", current->instr.arg1, current->instr.arg2,
              current->instr.num);
+      break;
     case POWERF:
     case POWER:
       printf("POW %s %s %s\n", current->instr.arg1, current->instr.arg2,

@@ -17,12 +17,19 @@
 #include "Ast/ast.h"
 #include "CodeGen/codeGen.h"
 #include "IR/ir.h"
+#include "Optimizer/optimizer.h"
 #include "Table/table.h"
 #include "parser.tab.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 int main(int argc, char *argv[]) {
+  if (argc <= 1) {
+    fprintf(stderr, "No file was passed\n");
+    return EXIT_FAILURE;
+  }
+
   Prog prog = NULL;
   Table tbl = NULL;
   tbl = addEntry(tbl, "Put_Line", TBL_FUNCTION, 1, TBL_STRING);
@@ -64,6 +71,16 @@ int main(int argc, char *argv[]) {
   if (!instrs) {
     fprintf(stderr, "Unable to generate the IR for the source code given\n");
     return EXIT_FAILURE;
+  }
+  if (argc > 2 && !strcmp(argv[2], "-o")) {
+    int optimize = 1;
+    while (optimize) {
+      instrs = optimizeIR(instrs, &strs, &floats, &optimize);
+      if (!instrs) {
+        fprintf(stderr, "IR returned NULL after Optimizer pass\n");
+        return EXIT_FAILURE;
+      }
+    }
   }
   printInstructions(instrs);
   if (!generateASM(argv[1], tbl, prog->varDec, instrs, strs, floats)) {

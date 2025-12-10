@@ -116,6 +116,16 @@ begin
   end if;
 end Main;' '15'
 
+create add 'procedure Main is
+  x : Integer := 5;
+  y : Integer := 3;
+  z : Integer := 5;
+begin
+  x := x+y+z;
+  Put_Num (x);
+
+end Main;' '13'
+
 create pow 'procedure Main is
   x : Integer := 5;
 begin
