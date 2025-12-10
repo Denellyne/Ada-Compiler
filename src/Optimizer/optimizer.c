@@ -1,4 +1,5 @@
 #include "optimizer.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,11 +67,82 @@ int optimizeMoveIRecur(instrList *ir, stringLiterals **strs,
                        int *changed) {
 
   switch (ir->instr.opcode) {
-  case ADD:
+  case SAVEREGISTERS:
+  case LOADREGISTERS:
+  case LABEL:
+  case LOADADRESS:
+  case COND:
+  case EQUALSI:
+  case NOTEQUALSI:
+  case GREATEREQI:
+  case GREATERI:
+  case LESSERI:
+  case LESSEREQI:
+  case EQUALS:
+  case NOTEQUALS:
+  case GREATEREQ:
+  case GREATER:
+  case LESSER:
+  case LESSEREQ:
+  case BNEZ:
+    return 0;
+    break;
+  case MOVE:
+  case ADDI:
+  case SUBI:
+  case MULTI:
+  case DIVIDEI:
+  case POWERI: {
+    char *t0 = ir->instr.arg1;
+    char *t1 = ir->instr.arg2;
+    if (!strcmp(t0, id))
+      return 1;
+    else if (!strcmp(t1, id)) {
+      switch (ir->instr.opcode) {
+      case MOVE:
+        ir->instr.num = val;
+        break;
+      case ADDI:
+        ir->instr.num = val + ir->instr.num;
+        break;
+      case DIVIDEI:
+        ir->instr.num = val / ir->instr.num;
+        break;
+      case SUBI:
+        ir->instr.num = val - ir->instr.num;
+        break;
+      case MULTI:
+        ir->instr.num = val * ir->instr.num;
+        break;
+      case POWERI:
+        ir->instr.num = (int)floor(pow(val, ir->instr.num));
+        break;
+      default:
+        fprintf(stderr, "Not supposed to happend\n");
+        return -1;
+      }
+      *changed = 1;
+      ir->instr.opcode = MOVEI;
+    }
+  } break;
   case SUB:
-  case MULT:
   case DIVIDE:
   case POWER: {
+    char *t0 = ir->instr.arg1;
+    char *t1 = ir->instr.arg2;
+    char *t2 = ir->instr.arg3;
+    if (!strcmp(t0, id))
+      return 0;
+    else if (!strcmp(t1, id))
+      return 1;
+    else if (!strcmp(t2, id)) {
+      ir->instr.opcode = convertToImmediate(ir->instr.opcode);
+      ir->instr.num = val;
+      *changed = 1;
+    }
+  } break;
+  case ADD:
+  case MULT: {
     char *t0 = ir->instr.arg1;
     char *t1 = ir->instr.arg2;
     char *t2 = ir->instr.arg3;
@@ -81,57 +153,36 @@ int optimizeMoveIRecur(instrList *ir, stringLiterals **strs,
       ir->instr.opcode = convertToImmediate(ir->instr.opcode);
       ir->instr.num = val;
       *changed = 1;
-      break;
     } else if (!strcmp(t2, id)) {
       ir->instr.opcode = convertToImmediate(ir->instr.opcode);
       ir->instr.num = val;
       *changed = 1;
-      break;
     }
-
   } break;
-  case MOVE: {
+  case MOVEI: {
     char *t0 = ir->instr.arg1;
     if (!strcmp(t0, id))
       return 1;
-    char *t1 = ir->instr.arg2;
-    if (!strcmp(id, t1)) {
-      ir->instr.num = val;
-      ir->instr.opcode = convertToImmediate(ir->instr.opcode);
-      if (ir->next) {
-        instrList *nextIr = ir->next->next;
-        free(ir->next);
-        ir->next = nextIr;
-      }
-      *changed = 1;
-    }
   } break;
   default:
     break;
   }
   if (!ir->next)
-    return 1;
-  instrList *next = ir->next;
-  int ret = optimizeMoveIRecur(next, strs, floats, id, val, changed);
-
-  if (!ret) {
-    fprintf(stderr, "Error while optimizing MOVEI\n");
     return 0;
-  }
-  return 1;
+  return optimizeMoveIRecur(ir->next, strs, floats, id, val, changed);
 }
 int optimizeMoveI(instrList *ir, stringLiterals **strs, floatLiterals **floats,
                   int *changed) {
   if (!ir->next || !ir->next->next)
-    return 1;
+    return 0;
   instrList *next = ir->next;
   int ret = optimizeMoveIRecur(next, strs, floats, ir->instr.arg1,
                                ir->instr.num, changed);
-  if (!ret) {
-    fprintf(stderr, "Error while optimizing MOVEI\n");
-    return 0;
+  if (ret == -1) {
+    fprintf(stderr, "Unable to apply MoveI optimizatiion\n");
+    return -1;
   }
-  return 1;
+  return ret;
 }
 
 int optimizeArith(instrList *ir, stringLiterals **strs, floatLiterals **floats,
@@ -140,6 +191,26 @@ int optimizeArith(instrList *ir, stringLiterals **strs, floatLiterals **floats,
     return 1;
 
   switch (ir->next->instr.opcode) {
+  case LABEL:
+  case COND:
+  case LOADADRESS:
+  case SAVEREGISTERS:
+  case LOADREGISTERS:
+  case EQUALSI:
+  case NOTEQUALSI:
+  case GREATEREQI:
+  case GREATERI:
+  case LESSERI:
+  case LESSEREQI:
+  case EQUALS:
+  case NOTEQUALS:
+  case GREATEREQ:
+  case GREATER:
+  case LESSER:
+  case LESSEREQ:
+  case BNEZ:
+    return 1;
+    break;
   case ADD:
   case SUB:
   case MULT:
@@ -208,13 +279,19 @@ instrList *optimizeIR(instrList *ir, stringLiterals **strs,
         return NULL;
       }
       break;
-    case MOVEI:
-      break;
-      if (!optimizeMoveI(head, strs, floats, changed)) {
+    case MOVEI: {
+      int moveApplied = 0;
+      int ret = optimizeMoveI(head, strs, floats, &moveApplied);
+      if (ret == -1) {
         fprintf(stderr, "Optimizer error while optimizing arith\n");
         return NULL;
-      }
-      break;
+      } else if (moveApplied)
+        *changed = 1;
+
+      // if (!ret)
+      //   head->instr.opcode = NOP;
+
+    } break;
     case EQUALS:
     case NOTEQUALS:
     case GREATEREQ:

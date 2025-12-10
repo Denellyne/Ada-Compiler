@@ -54,6 +54,7 @@ typedef enum {
   DIVIDEF,
   MULTF,
   POWERF,
+  NOP,
   BNEZ = 128,
 } Opcode;
 struct _variables {
