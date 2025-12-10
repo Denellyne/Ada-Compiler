@@ -258,7 +258,6 @@ instrList *optimizeIR(instrList *ir, stringLiterals **strs,
     return NULL;
   }
   *changed = 0;
-  printf("Optimizing IR\n");
 
   instrList *head = ir;
   // printInstructions(ir);
@@ -312,7 +311,6 @@ instrList *optimizeIR(instrList *ir, stringLiterals **strs,
     head = head->next;
   }
   // printInstructions(ir);
-  printf("Optimizer Finished\n");
 
   return ir;
 }
