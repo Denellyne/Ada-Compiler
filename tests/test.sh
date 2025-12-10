@@ -47,7 +47,7 @@ bash ./gen.sh
 
 for filename in ./*.adb; do
   tests=$((tests + 1))
-  if ../bin/ada $filename -o >/dev/null 2>&1; then
+  if ../bin/ada $filename >/dev/null 2>&1; then
     if testASM $filename; then
       echo -e "\033[0;32m$filename Success\033[0m"
       successes=$((successes + 1))

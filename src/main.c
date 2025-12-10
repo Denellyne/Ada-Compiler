@@ -82,6 +82,11 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+  instrs = bindRegisters(instrs);
+  if (!instrs) {
+    fprintf(stderr, "Unable to bind temporaries to registers\n");
+    return EXIT_FAILURE;
+  }
   printInstructions(instrs);
   if (!generateASM(argv[1], tbl, prog->varDec, instrs, strs, floats)) {
     freeInstructions(&instrs);

@@ -299,37 +299,37 @@ int printInstr(FILE *file, instrList *instrs) {
         return 0;
       break;
     case EQUALSI:
-      if (fprintf(file, "beq $%s, $%d, %s\n", current->instr.arg1,
+      if (fprintf(file, "beq $%s, %d, %s\n", current->instr.arg1,
                   current->instr.num, current->instr.arg3) < 0)
         return 0;
       break;
 
     case NOTEQUALSI:
-      if (fprintf(file, "bne $%s, $%d, %s\n", current->instr.arg1,
+      if (fprintf(file, "bne $%s, %d, %s\n", current->instr.arg1,
                   current->instr.num, current->instr.arg3) < 0)
         return 0;
       break;
 
     case LESSERI:
-      if (fprintf(file, "blt $%s, $%d, %s\n", current->instr.arg1,
+      if (fprintf(file, "blt $%s, %d, %s\n", current->instr.arg1,
                   current->instr.num, current->instr.arg3) < 0)
         return 0;
       break;
 
     case GREATERI:
-      if (fprintf(file, "bgt $%s, $%d, %s\n", current->instr.arg1,
+      if (fprintf(file, "bgt $%s, %d, %s\n", current->instr.arg1,
                   current->instr.num, current->instr.arg3) < 0)
         return 0;
       break;
 
     case LESSEREQI:
-      if (fprintf(file, "ble $%s, $%d, %s\n", current->instr.arg1,
+      if (fprintf(file, "ble $%s, %d, %s\n", current->instr.arg1,
                   current->instr.num, current->instr.arg3) < 0)
         return 0;
       break;
 
     case GREATEREQI:
-      if (fprintf(file, "bge $%s, $%d, %s\n", current->instr.arg1,
+      if (fprintf(file, "bge $%s, %d, %s\n", current->instr.arg1,
                   current->instr.num, current->instr.arg3) < 0)
         return 0;
       break;

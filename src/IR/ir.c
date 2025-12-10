@@ -13,7 +13,6 @@ static instrList *lastInstr = NULL;
 static char *condLeft = NULL;
 static char *condRight = NULL;
 
-static int used[18];
 static int usedFloats[14];
 
 int emit2(Opcode opc, char *arg1, char *arg2);
@@ -159,16 +158,78 @@ char *newTempFloat() {
   return NULL;
 }
 char *newTemp() {
-  for (int i = 0; i < 18; i++) {
-    if (!used[i]) {
-      used[i] = 1;
-      tempCount++;
-      assert(tempCount < 18);
-      return strdup(temps[i]);
+  char *id = malloc(10);
+  if (!id) {
+    fprintf(stderr, "Unable to allocate memory for new temp\n");
+    return NULL;
+  }
+  asprintf(&id, "temp%d", tempCount++);
+  return id;
+}
+registers *addReg(char *id, registers *regs) {
+  if (!id)
+    return NULL;
+
+  if (!regs) {
+    regs = (registers *)malloc(sizeof(registers));
+    if (!regs) {
+      fprintf(stderr, "Unable to malloc memory for struct registers\n");
+      return NULL;
     }
+    regs->next = NULL;
+    regs->id = strdup(id);
+    regs->val = 0;
+    return regs;
+  }
+  registers *head = regs;
+  int counter = 1;
+  while (regs->next) {
+    if (!strcmp(id, regs->id)) {
+      fprintf(stderr, "Another register found with the same id\n");
+      return NULL;
+    }
+
+    counter++;
+    regs = regs->next;
   }
 
-  return NULL;
+  regs->next = (registers *)malloc(sizeof(registers));
+  if (!regs->next) {
+    fprintf(stderr, "Unable to malloc memory for struct registers\n");
+    return NULL;
+  }
+  regs->next->next = NULL;
+
+  regs->next->id = strdup(id);
+  regs->next->val = counter;
+  return head;
+}
+int searchRegsById(char *id, registers *regs) {
+  registers *head = regs;
+  while (head) {
+    if (!strcmp(id, head->id))
+      return head->val;
+    head = head->next;
+  }
+  return -1;
+}
+int getReg(char *id, registers **regs) {
+  if (id[0] == 'a' || id[0] == 'f' || !strcmp(id, "zero"))
+    return -2;
+  int reg = searchRegsById(id, *regs);
+  if (reg == -1) {
+    *regs = addReg(id, *regs);
+    if (!regs) {
+      fprintf(stderr, "Unable to add new register to register struct\n");
+      return -1;
+    }
+    reg = searchRegsById(id, *regs);
+    if (reg == -1) {
+      fprintf(stderr, "Unable to find register in register struct\n");
+      return -1;
+    }
+  }
+  return reg;
 }
 int searchStrLiteralById(char *id, stringLiterals *strs) {
   stringLiterals *head = strs;
@@ -231,7 +292,7 @@ stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
   if (!strs) {
     strs = (stringLiterals *)malloc(sizeof(stringLiterals));
     if (!strs) {
-      fprintf(stderr, "Unable to malloc memory for struct floatLiterals\n");
+      fprintf(stderr, "Unable to malloc memory for struct stringLiterals\n");
       return NULL;
     }
     strs->next = NULL;
@@ -250,7 +311,7 @@ stringLiterals *addString(char *id, char *str, stringLiterals *strs) {
 
   strs->next = (stringLiterals *)malloc(sizeof(stringLiterals));
   if (!strs->next) {
-    fprintf(stderr, "Unable to malloc memory for struct floatLiterals\n");
+    fprintf(stderr, "Unable to malloc memory for struct stringLiterals\n");
     return NULL;
   }
   strs->next->next = NULL;
@@ -285,16 +346,9 @@ void removeTempFloat(char *temp) {
 }
 
 void removeTemp(char *temp) {
-  if (!temp)
-    return;
-  for (int i = 0; i < 18; i++) {
-    if (strcmp(temp, temps[i]) == 0) {
-      used[i] = 0;
-      tempCount--;
-      assert(tempCount >= 0);
-      return;
-    }
-  }
+  tempCount--;
+  assert(tempCount >= 0);
+  return;
 }
 
 int emitFunction(char *id, char *temp, char *temp2) {
@@ -757,8 +811,6 @@ void printVars(vars *vars) {
   }
 }
 void clearUsedArrays() {
-  for (int i = 0; i < 18; i++)
-    used[i] = 0;
   for (int i = 0; i < 14; i++)
     usedFloats[i] = 0;
 }
@@ -1510,11 +1562,11 @@ int transStm(Stm stm, vars *vars, stringLiterals **strs,
       }
       ret = ret && emit2(MOVE, dst2, temp2);
     }
-    if (remove)
+    if (remove && !isFloat)
       removeTemp(temp);
     else if (remove && isFloat)
       removeTempFloat(temp);
-    if (remove2)
+    if (remove2 && !isFloat2)
       removeTemp(temp2);
     else if (remove2 && isFloat2)
       removeTempFloat(temp2);
@@ -2017,4 +2069,166 @@ void freeStrings(stringLiterals **strs) {
 
     *strs = next;
   }
+}
+instrList *bindRegisters(instrList *list) {
+  instrList *head = list;
+  registers *regs = NULL;
+  while (head) {
+    switch (head->instr.opcode) {
+    case OP:
+    case LABEL:
+    case JUMP:
+    case CALL:
+    case COND:
+      break;
+    case MOVE: {
+
+      int reg = getReg(head->instr.arg1, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg1 = strdup(temps[reg]);
+      reg = getReg(head->instr.arg2, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg2 = strdup(temps[reg]);
+    } break;
+    case MOVEI: {
+
+      int reg = getReg(head->instr.arg1, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg1 = strdup(temps[reg]);
+    } break;
+    case BNEZ:
+    case LOADADRESS: {
+      int reg = getReg(head->instr.arg1, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg1 = strdup(temps[reg]);
+    } break;
+    case ADD:
+    case SUB:
+    case MULT:
+    case DIVIDE:
+    case POWER:
+    case XR: {
+
+      int reg = getReg(head->instr.arg1, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg1 = strdup(temps[reg]);
+      reg = getReg(head->instr.arg2, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg2 = strdup(temps[reg]);
+      reg = getReg(head->instr.arg3, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg3 = strdup(temps[reg]);
+    } break;
+    case GREATEREQI:
+    case LESSEREQI:
+    case EQUALSI:
+    case NOTEQUALSI:
+    case GREATERI:
+    case LESSERI: {
+      int reg = getReg(head->instr.arg1, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg1 = strdup(temps[reg]);
+    } break;
+    case GREATEREQ:
+    case LESSEREQ:
+    case EQUALS:
+    case NOTEQUALS:
+    case GREATER:
+    case LESSER:
+    case ADDI:
+    case SUBI:
+    case MULTI:
+    case DIVIDEI:
+    case POWERI:
+    case XRI: {
+
+      int reg = getReg(head->instr.arg1, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg1 = strdup(temps[reg]);
+      reg = getReg(head->instr.arg2, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg2 = strdup(temps[reg]);
+    } break;
+    case UNARY:
+      break;
+    case NEG: {
+      int reg = getReg(head->instr.arg1, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg1 = strdup(temps[reg]);
+      reg = getReg(head->instr.arg2, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg2 = strdup(temps[reg]);
+    } break;
+    case SAVEREGISTERS:
+    case LOADREGISTERS:
+      break;
+    case MOVEF:
+    case MOVEFI:
+    case ADDF:
+    case SUBF:
+    case DIVIDEF:
+    case MULTF:
+      break;
+    case POWERF: {
+      int reg = getReg(head->instr.arg3, &regs);
+      if (reg == -1) {
+        fprintf(stderr, "Unable to find register for variable\n");
+        return NULL;
+      }
+      if (reg != -2)
+        head->instr.arg3 = strdup(temps[reg]);
+    } break;
+    }
+    head = head->next;
+  }
+
+  return list;
 }

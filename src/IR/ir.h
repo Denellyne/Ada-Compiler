@@ -69,6 +69,13 @@ struct _stringLiterals {
 };
 typedef struct _stringLiterals stringLiterals;
 
+struct _registers {
+  char *id;
+  int val;
+  struct _registers *next;
+};
+typedef struct _registers registers;
+
 struct _floatLiterals {
   char *id;
   double val;
@@ -100,5 +107,6 @@ void printInstructions(instrList *list);
 void freeInstructions(instrList **list);
 void freeStrings(stringLiterals **strs);
 void freeFloats(floatLiterals **floats);
+instrList *bindRegisters(instrList *list);
 
 #endif
