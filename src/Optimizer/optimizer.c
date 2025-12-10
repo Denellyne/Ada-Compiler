@@ -19,6 +19,65 @@ int convertToImmediate(const int tag) {
     return -1;
   }
 }
+int optimizeLoadAdressRecur(instrList *ir, char *id, char *str, int *changed) {
+
+  if (!ir->next)
+    return 1;
+
+  switch (ir->next->instr.opcode) {
+  case LABEL:
+  case COND:
+  case SAVEREGISTERS:
+  case LOADREGISTERS:
+  case EQUALSI:
+  case NOTEQUALSI:
+  case GREATEREQI:
+  case GREATERI:
+  case LESSERI:
+  case LESSEREQI:
+  case EQUALS:
+  case NOTEQUALS:
+  case GREATEREQ:
+  case GREATER:
+  case LESSER:
+  case LESSEREQ:
+  case BNEZ:
+    return 1;
+  case LOADADRESS: {
+    if (!strcmp(id, ir->next->instr.arg1)) {
+      *changed = 1;
+      ir->instr.opcode = NOP;
+      return optimizeLoadAdressRecur(ir->next, id, ir->next->instr.arg2,
+                                     changed);
+    }
+  } break;
+  case MOVE: {
+    char *id1 = ir->next->instr.arg1;
+    char *id2 = ir->next->instr.arg2;
+    if (!strcmp(id, id1))
+      return 1;
+    if (!strcmp(id, id2)) {
+      ir->next->instr.arg2 = str;
+      ir->next->instr.opcode = LOADADRESS;
+      *changed = 1;
+    }
+  } break;
+  default:
+    break;
+  }
+  return optimizeLoadAdressRecur(ir->next, id, str, changed);
+}
+int optimizeLoadAdress(instrList *ir, int *changed) {
+  if (!ir->next || !ir->next->next)
+    return 1;
+  int ret =
+      optimizeLoadAdressRecur(ir, ir->instr.arg1, ir->instr.arg2, changed);
+  if (!ret) {
+    fprintf(stderr, "Unable to apply MoveI optimizatiion\n");
+    return 0;
+  }
+  return ret;
+}
 
 int optimizeCond(instrList *ir, stringLiterals **strs, floatLiterals **floats) {
   if (!ir->next)
@@ -263,6 +322,17 @@ instrList *optimizeIR(instrList *ir, stringLiterals **strs,
   // printInstructions(ir);
   while (head) {
     switch (head->instr.opcode) {
+    case LOADADRESS: {
+      int tChanged = 0;
+      if (!optimizeLoadAdress(head, &tChanged)) {
+        fprintf(stderr, "Optimizer error while optimizing arith\n");
+        return NULL;
+      }
+      if (tChanged) {
+        *changed = 1;
+        head->instr.opcode = NOP;
+      }
+    } break;
     case ADDI:
     case SUBI:
     case MULTI:
