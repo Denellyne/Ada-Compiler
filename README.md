@@ -10,11 +10,26 @@ Maria Eduarda Toigo, up202309487
 ## Introduction
 
 
-This project implements the initial phase of a compiler for a simplified subset of the Ada programming language, focusing on lexical and syntactic analysis. The implementation consists of two main components working in sequence:<br>
-The scanner processes raw source code, transforming character streams into structured tokens that identify the fundamental elements of the language. Following this, the parser analyzes the token sequence against Ada’s grammatical rules, constructing an Abstract Syntax Tree (AST) that captures the program’s hierarchical structure.
+This project implements a complete compiler for a simplified subset of the Ada programming language, transforming high-level Ada source code into executable MIPS assembly. The compiler follows the traditional multi-phase architecture, covering the entire compilation process from lexical analysis to machine code generation. 
 
+### Project Scope
 
-Our Ada subset centers around a primary main procedure and supports essential programming constructs:<br>
+The development occurred in two major phases:
+
+**Phase 1: Front-end Development** (First Coursework)
+- Lexical analysis using Flex for token recognition 
+- Syntactic analysis using Bison for grammar validation 
+- Abstract Syntax Tree (AST) construction representing program structure
+- Basic semantic validation and error reporting 
+
+**Phase 2: Back-end Development** (Second Coursework)
+- Symbol table construction with comprehensive type information 
+- Intermediate code generation in three-address form 
+- Code optimization for improved execution efficiency 
+- MIPS assembly generation compatible with the MARS simulator 
+
+### Supported Language Features
+Our Ada subset centers around variable declarations and statements with support for essential programming constructs:<br>
 Expressions:<br>
 - Arithmetic operations (+, -, *, /, **)<br>
 - Boolean logic (AND, OR, NOT, XOR) <br>
@@ -27,12 +42,15 @@ Control Structures:<br>
 - Iterative loops (while)<br>
 - Procedure calls with flexible arguments
 
+Data Types:<br> 
+- Integer: 32-bit signed values
+- Float: Double-precision floating point 
+- String: ASCIIZ string literals 
+- Boolean: LOgical true/false values
 
-This foundation provides the basis  for further compilation stages while demonstrating core principles of language processing.
+This foundation provides the basis for the complete compilation pipeline while demonstrating core principles of language processing.
 
-
-## Technical Specifications
-
+### Technical Specifications
 
 Build requirements: flex, bison, gcc<br>
 Memory Management: malloc/strdup allocation (no specific cleanup)<br>
@@ -516,16 +534,275 @@ Prog mkProg(Stm varDec, Stm statments) {
 
 This bottom-up approach ensures the AST accurately represents the program’s hierarchical structure maintaining the logical relationships between code elements.
 
+## Implementation Modules 
 
-### Conclusion
+The compiler is organized into modular components, responsible for a specific compilation phases. 
+
+### Symbol Table Module  
+
+The symbol table module implements semantic analysis and type checking using a linked list-based key-value store. It validates program correctness by tracking variable types and ensuring type compatibility throughout expressions. Ensures type correctness of the generated AST.
+
+The table uses a simple linled list structure where each entry contains:
+
+- `key`: Identifier representing the data type
+- `typeTag`: Bitmask representing the data type 
+- `numArgs`: For function entries, number of parameters
+- `argType`: Linked list of parameter tyes for functions
+- `next`: Pointer to next entry in collision chain
+
+**Type System** 
+
+```c 
+enum {
+  TBL_INT = 1,
+  TBL_BOOL = 2,
+  TBL_STRING = 4, 
+  TBL_FUNCTION = 8,
+  TBL_ID = 16, 
+  TBL_FLOAT = 32,
+  TBL_ERROR = 64,
+};
+
+```
+**Core Functions** 
+- **Type Conversion** 
+
+```c 
+int convertType(int type) {
+    switch (type) {
+    case FLOAT: return TBL_FLOAT;
+    case NUM: return TBL_INT;
+    case STRLITERAL: return TBL_STRING;
+    case BOOL: return TBL_BOOL;
+    case ID: return TBL_ID;
+    default: return TBL_ERROR;
+    }
+}
+```
 
 
+**Symbol Management**
+
+- `addEntry()`: Inserts new symbols with optional parameter lists
+- `lookup()`: Linear search through linked list (O(n))
+- `addVariableDeclaratios()`: Processes variable declaration statements 
+
+**Type Compatibility Rules** 
+
+- **Arithmetic Operations (+, -, *, /)**
+```c
+if (typeL & (TBL_INT | TBL_FLOAT) && (typeR & (TBL_FLOAT | TBL_INT))) {
+    if (typeL == TBL_FLOAT && typeR == TBL_FLOAT)
+        return TBL_FLOAT;
+    return TBL_INT;
+}
+```
+- **Exponentiation (`**`)**
+- Base: Integer or float
+- Exponent: Integer only 
+- Result type matches base type 
+
+- **Logical Operations(`AND`, `OR`, `NOT`, `XOR`)** 
+- Operands: Boolean or Integer 
+- Result: Same as operands 
+
+- **Comparison Operations(`=`, `/=`, `<`, `>`, `<=`, `>=`)** 
+- Operands: Compatible types (Integer, Boolean)
+- Result: Boolean
+
+**Error Handling** 
+The module provides detailed error messages: 
+
+- Duplicate variable declarations 
+- Type mismatches in assignments 
+- Invalid operand types for operations 
+- Function call argument count/type mismatches
+
+**Integration with Compilation Pipeline** 
+- 1.Declaration Phase: `addVariableDeclarations()` builds initial symbol table 
+- 2.Validation Phase: `validateAST()`checks entire program semantics 
+- 3.Type Query Phase: `checkExprType()`used during code generation
+
+### Intermediate Representation Module(IR)
+
+The IR translates the AST with lightweight optimizations, such as temporary reuse and conversion of two-operand operations into immediate operations where possible.<br>
+For floats and strings, values are stored in the `.data` section, and temporaries load them as needed.<br>
+After IR generation --and if the `-o`flag is enabled, after optimization--temporaries are mapped to actual MIPS registers.
 
 
-This project implements the core stages of a compiler construction for a simplified Ada subset. The lexical analyzer, developed with Flex, efficiently converts the program's source code into tokens using regular expressions, while the syntactic parser, built with Bison, validates grammatical structure and constructs a comprehensive Abstract Syntax Tree. The system demonstrates effective management of Ada's essential features including expressions, control structures, variable declarations, and procedure calls. This work establishes a solid foundation for subsequent compilation stages, showcasing practical application of formal language processing techniques.
+**Register Management System** 
+
+The module manages two separate register pools:
+**Integer Registers** 
+- Temporary registers: `$t0` through `$t9` 
+- Saved registers: `$s0` through `$s7` 
+- Allocation tracking via `used[18]` bitmask array 
+
+**Float Registers**
+- Even numbered registers only
+- Allocation tracking via `usedFloats[14]`bitmask array 
+- Double-precision operations requiring even-odd register pairs
+
+**Register Allocation Functions** 
+
+```c 
+char *newTemp() {
+  for (int i = 0; i < 18; i++) {
+    if (!used[i]) {
+      used[i] = 1;
+      tempCount++;
+      assert(tempCount < 18);
+      return strdup(temps[i]);
+    }
+  }
+
+  return NULL;
+}
+
+char *newTempFloat() {
+  for (int i = 0; i < 14; i++) {
+    if (!usedFloats[i]) {
+      usedFloats[i] = 1;
+      floatsCount++;
+      assert(floatsCount < 14);
+      return strdup(tempFloats[i]);
+    }
+  }
+}
+
+``` 
+#### Three-Address Code Intermediate Representation
+
+The compiler uses **three-address code** as its intermediate representation (IR), implementing a comprehensive system for temporary register management, literal pooling, and control flow generation.
+
+##### Instruction Representation 
+
+```c 
+struct _instruction {
+  Opcode opcode;
+  char *arg1;
+  char *arg2;
+  char *arg3;
+  char *arg4;
+  int num;
+  double val;
+  op binop;
+};
+``` 
+
+The IR implements a compehensive instruction set covering all Ada subset operations:
+
+**Data Movement Instructions** 
+- `MOVE dest, src`: Register-to-Register
+- `MOVEI dest, value`: Load immediate value
+- `MOVEF dest, src`: Float register tranfer 
+- `MOVEFI dest, label`: Load float constant 
+- `LOADADRESS dest, label`: For strings 
+
+**Arithmetic Instructions** 
+
+- Integer: `AND`, `SUB`, `MULT`, `DIV`
+- Float: `ADDF`, `SUBF`, `MULTF`, `DIVIDEF`
+- Immediate variants: `ADDI`, `SUBI`, `MULTI`, `DIVIDEI`
+
+**Control Flow Instructions** 
+
+- `JUMP label`: Unconditional jump 
+- `COND op, src1, src2, labelTrue, labelFalse`: Conditional branch 
+- `BNEZ src, label`: Branch if not equal zero 
+- `LABEL name`: Code label definition 
+
+**Function Call Instruction** 
+
+- `CALL functionName`: Procedure invocation 
+- `SAVEREGISTERS count`: Preserve register state 
+- `LOADREGISTERS count`: Restore register state 
+   
+
+#### IR Optimization 
+
+The compiler includes a lightweight peephole optimization phase that operates directly on the intermediate representation (IR) before assembly generation. This module performs local transformations on consecutive instructions in order to reduce redundancy and improve the quality of the generated MIPS code.
+
+**Arithmetic Optimizations** 
+Expressions known at compile-time are replaced with immediate loads carrying their precomputd values.
+
+**Move Optimization** 
+Statements of the form: 
+
+`ADD t0 t1 t2`
+`MOVE a0 t0`
+
+are optimized to:
 
 
+`ADD a0 t1 t2`
 
+This avoids an unnecessary intermediate instruction.<br> 
+Move optimizations can also transform arithmetic operations into immediate operations if one operand can be replaced by its value. It both operands become constants, the operation is replaced by an immediate load.
+
+**Dead Assignment Elimination** 
+
+For repeated assignments to the same `str`variable, only the final assignment is generated, as it is the only one affecting the program's outcome.
+
+**Condition Optimization** 
+
+Conditions are optimized using move optimizations:<br>
+- First transformed into immediate conditions when possible 
+- If both operands become constants, the condition is evaluated at compile-time, and all irrelevant branches are eliminated, only the taken path is preserved.
+
+Unlike arithmetic operations (except `ADD` and `MULT`), any operand is a condition can be swapped by reversing the comparator while preserving semantics. 
+Example:
+`COND t0 >= t1 L0 L1`is generated from `t0`, `t1`, and `L0`.
+If `t0` is replaced by constant `3`, we transform: 
+`COND 3 >= t1 L0 L1` into `COND t1 <= 3 L0 L1`, which is semantically equivalent and compatible with our code generator.
+### Assembly Code Generation
+
+
+The final compilation stage is handled by two coordinated files:
+ **Header File (`codeGen.h`)**
+ Defines the public interface with a single entry point:
+ ```c 
+int generateASM(char *fileName, Table tbl, Stm varDecl, instrList *ir,
+                stringLiterals *strs, floatLiterals *floats);
+``` 
+This function accepts all compiler data structure and produces the final output.
+
+**Implementation File (`codeGen.c`)**
+Contains the complete translation logic from intermediate representation to executable MIPS code.
+
+###  Assembly Output Format 
+The generator creates structured MIPS assembly with two main segments:
+- `.data`
+Stores static content: string constants, numeric literals.
+- `.text`
+Contains executable instructions, such as program initialization and termination routines, built-in supported functions and translated user program code.
+
+#### Code Generation for Built-in Functions 
+
+`Put_Line` 
+Implemented as a single syscall 
+
+`Get_Line`
+Reads user input into a 64-byte buffer, allocates memory for the string, copies the buffer content to this memory, assigns the address to the given string variable, and stores the string length in the second argument.
+
+`Put_Num`
+Prints integers or floats. A hidden second argument indicates the type, and the function branches accordingly.
+
+**Power Operator** 
+Follows the same pattern as `Put_Num`, with a hidden type argument allowing the same function to handle different numeric types.
+
+**Main Program Translation** - Converts IR instructions to MIPS
+
+#### Instruction Translation Mechanism 
+Ã central dispatch function (`printInstr`) maps each intermediate instruction type to appropriate MIPS code:
+- Arithmetic operations - `addu`, `add.d`, `mul`, `mul.d`
+- Data movement - `move`, `la`, `ldc1`
+- Control flow - `j`, `beq`, `blt`
+- Function calls - `jal` with proper stack management 
+
+## Conclusion
+
+This project implemented a complete compiler for a subset of the Ada programming language. The system reads Ada source code, analyzes ts structure, performs type checking, generates optimized intermediate code, and produces executable MIPS assembly. The compiler supports arithmetic expressions, logical operations, conditional structures, loops, and calls to built-in functions.
 
 ### References
 
