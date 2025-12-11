@@ -136,7 +136,7 @@ int optimizeMoveIRecur(instrList *ir, stringLiterals **strs,
   case COND:
     return 0;
     break;
-  // case BNEZ:
+  case BNEZ:
   case EQUALSI:
   case NOTEQUALSI:
   case GREATEREQI:
@@ -146,6 +146,9 @@ int optimizeMoveIRecur(instrList *ir, stringLiterals **strs,
     char *t0 = ir->instr.arg1;
     if (!strcmp(t0, id)) {
       switch (ir->instr.opcode) {
+      case BNEZ:
+        ir->instr.num = 0 != val;
+        break;
       case EQUALSI:
         ir->instr.num = ir->instr.num == val;
         break;
@@ -163,6 +166,8 @@ int optimizeMoveIRecur(instrList *ir, stringLiterals **strs,
         break;
       case LESSEREQI:
         ir->instr.num = val <= ir->instr.num;
+        break;
+      default:
         break;
       }
       ir->instr.opcode = NOP;

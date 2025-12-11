@@ -53,6 +53,17 @@ begin
   Put_Num(V);
 end Main;' '4.141591'
 
+create ifsmall7 'procedure Main is
+  V : Boolean := False;
+  X : String := "a";
+begin
+  if V  then
+    Put_Num (0);
+  else
+    Put_Num (1);
+  end if;
+end Main;' '1'
+
 create ifsmall 'procedure Main is
   V : Boolean := True;
   X : String := "a";
