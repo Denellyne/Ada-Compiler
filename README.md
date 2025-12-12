@@ -13,9 +13,9 @@ This project implements a complete compiler for a simplified subset of the Ada p
 
 ### How to run
 
-Go to the folder [./src/] and run make, after that you go to folder [./tests/] and run [./tests/gen.sh] to generate all the test cases, then you can run the binary by running ../bin/ada {Name of TestFile} [-o if you wish to optimize the code] which will generate a {Name of TestFile}.adb.bin which you can pass to Mars.
+Go to the folder [src](./src/) and run make, after that you go to folder [tests](./tests/) and run [gen.sh](./tests/gen.sh) to generate all the test cases, then you can run the binary by running ../bin/ada {Name of TestFile} [-o if you wish to optimize the code] which will generate a {Name of TestFile}.adb.bin which you can pass to Mars.
 
-For automatic tests, if you have mars.jar inside [./tests/] you can run just run [./tests/test.sh]
+For automatic tests, if you have mars.jar inside [tests](./tests/) you can run just run [test.sh](./tests/test.sh)
 
 ### Project Scope
 
