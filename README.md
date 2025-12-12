@@ -9,8 +9,13 @@ Maria Eduarda Toigo, up202309487
 
 ## Introduction
 
-
 This project implements a complete compiler for a simplified subset of the Ada programming language, transforming high-level Ada source code into executable MIPS assembly. The compiler follows the traditional multi-phase architecture, covering the entire compilation process from lexical analysis to machine code generation. 
+
+### How to run
+
+Go to the folder [./src/] and run make, after that you go to folder [./tests/] and run [./tests/gen.sh] to generate all the test cases, then you can run the binary by running ../bin/ada {Name of TestFile} [-o if you wish to optimize the code] which will generate a {Name of TestFile}.adb.bin which you can pass to Mars.
+
+For automatic tests, if you have mars.jar inside [./tests/] you can run just run [./tests/test.sh]
 
 ### Project Scope
 
