@@ -14,12 +14,10 @@ jobs:
     steps:
     - name : Checkout repo
       uses: actions/checkout@main
-    - name : Create output directory
-      run : mkdir ./bin
     - name: Download Mars.jar
       run: curl -o mars.jar https://github.com/dpetersanderson/MARS/releases/download/v.4.5.1/Mars4_5.jar
       working-directory: ./tests
     - name: Building and Running tests
-      run: ./test
+      run: bash ./test.sh
       working-directory: ./tests
       
