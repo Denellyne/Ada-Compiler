@@ -15,7 +15,7 @@ jobs:
     - name : Checkout repo
       uses: actions/checkout@main
     - name: Download Mars.jar
-      run: curl -o mars.jar https://github.com/dpetersanderson/MARS/releases/download/v.4.5.1/Mars4_5.jar
+      run: curl -L -o mars.jar https://github.com/dpetersanderson/MARS/releases/download/v.4.5.1/Mars4_5.jar
       working-directory: ./tests
     - name: Building and Running tests
       run:  ./test.sh
