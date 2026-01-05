@@ -37,7 +37,7 @@ run : build
         @echo "Running..."
         $(OUTPUT)
 
-test:
+test :
         @bash ../tests/test.sh
 
 clean :
