@@ -18,6 +18,8 @@ jobs:
       run: curl -o mars.jar https://github.com/dpetersanderson/MARS/releases/download/v.4.5.1/Mars4_5.jar
       working-directory: ./tests
     - name: Building and Running tests
-      run: bash ./test.sh
+      run: |
+        ./test.sh
+        echo "EXIT CODE: $?"
       working-directory: ./tests
       
