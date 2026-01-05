@@ -18,24 +18,24 @@ lex.yy.o: lex.yy.c
 $(OBJ): parser.tab.h lex.yy.c
 
 %.o: %.c
-        @echo "Compiling $@"
-        @$(CXX) $(CFLAGS) -c $< -o $@
+	@echo "Compiling $@"
+	@$(CXX) $(CFLAGS) -c $< -o $@
 
 release : $(OBJ)
-        @echo "Builidng executable"
-        @mkdir -p ../bin
-        $(CXX) -O2 -o $(OUTPUT) $(OBJ) -lm
-        @echo "Done"
+	@echo "Builidng executable"
+	@mkdir -p ../bin
+	$(CXX) -O2 -o $(OUTPUT) $(OBJ) -lm
+	@echo "Done"
 
 build : $(OBJ)
-        @echo "Builidng executable"
-        @mkdir -p ../bin
-        $(CXX) -g -o $(OUTPUT) $(OBJ) -lm
-        @echo "Done"
+	@echo "Builidng executable"
+	@mkdir -p ../bin
+	$(CXX) -g -o $(OUTPUT) $(OBJ) -lm
+	@echo "Done"
 
 run : build
-        @echo "Running..."
-        $(OUTPUT)
+	@echo "Running..."
+	$(OUTPUT)
 
 test :
 	@bash ../tests/test.sh
