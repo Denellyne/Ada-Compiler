@@ -1,4 +1,5 @@
 #include "optimizer.h"
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +50,8 @@ int convertToImmediate(const int tag) {
     return -1;
   }
 }
-int optimizeLoadAdressRecur(instrList *ir, char *id, char *str, int *changed) {
+
+int optimizeLoadAdressRecur(instrList *ir,instrList* prev, char *id, char *str, int *changed) {
 
   if (!ir->next)
     return 1;
@@ -76,8 +78,12 @@ int optimizeLoadAdressRecur(instrList *ir, char *id, char *str, int *changed) {
   case LOADADRESS: {
     if (!strcmp(id, ir->next->instr.arg1)) {
       *changed = 1;
-      ir->instr.opcode = NOP;
-      return optimizeLoadAdressRecur(ir->next, id, ir->next->instr.arg2,
+        
+        instrList** next = &ir->next;
+        free(ir);
+        assert(prev != NULL);
+        prev->next=*next;
+        return optimizeLoadAdressRecur(prev->next,prev, id, prev->next->instr.arg2,
                                      changed);
     }
   } break;
@@ -95,13 +101,13 @@ int optimizeLoadAdressRecur(instrList *ir, char *id, char *str, int *changed) {
   default:
     break;
   }
-  return optimizeLoadAdressRecur(ir->next, id, str, changed);
+  return optimizeLoadAdressRecur(ir->next,ir, id, str, changed);
 }
-int optimizeLoadAdress(instrList *ir, int *changed) {
+int optimizeLoadAdress(instrList *ir,instrList* prev, int *changed) {
   if (!ir->next || !ir->next->next)
     return 1;
   int ret =
-      optimizeLoadAdressRecur(ir, ir->instr.arg1, ir->instr.arg2, changed);
+      optimizeLoadAdressRecur(ir,prev, ir->instr.arg1, ir->instr.arg2, changed);
   if (!ret) {
     fprintf(stderr, "Unable to apply MoveI optimizatiion\n");
     return 0;
@@ -109,7 +115,7 @@ int optimizeLoadAdress(instrList *ir, int *changed) {
   return ret;
 }
 
-int optimizeCond(instrList *ir, char *label) {
+int optimizeCond(instrList *ir,instrList*prev, char *label) {
   if (!ir->next)
     return 1;
 
@@ -119,14 +125,23 @@ int optimizeCond(instrList *ir, char *label) {
       return 1;
     break;
   default:
-    ir->instr.opcode = NOP;
+
+      instrList** next = &ir->next;
+      free(ir);
+      if(!prev)
+        return optimizeCond(*next,NULL, label);
+
+        assert(prev != NULL);
+      prev->next = *next;
+      return optimizeCond(prev->next,prev, label);
     break;
   }
-  return optimizeCond(ir->next, label);
+  return optimizeCond(ir->next,ir, label);
 }
-int optimizeMoveIRecur(instrList *ir, stringLiterals **strs,
+int optimizeMoveIRecur(instrList *ir,instrList* prev, stringLiterals **strs,
                        floatLiterals **floats, char *id, int val,
                        int *changed) {
+  if(!ir) return 0;
 
   switch (ir->instr.opcode) {
   case SAVEREGISTERS:
@@ -170,14 +185,13 @@ int optimizeMoveIRecur(instrList *ir, stringLiterals **strs,
       default:
         break;
       }
-      ir->instr.opcode = NOP;
       *changed = 1;
       char *labelEffective = ir->instr.arg3;
       if (!ir->instr.num)
         labelEffective = ir->instr.arg4;
       printf("%d %s %s %s\n", ir->instr.num, labelEffective, ir->instr.arg3,
              ir->instr.arg4);
-      if (!optimizeCond(ir, labelEffective)) {
+      if (!optimizeCond(ir,prev, labelEffective)) {
         fprintf(stderr, "Error while optimizing condition\n");
         return -1;
       }
@@ -299,14 +313,14 @@ int optimizeMoveIRecur(instrList *ir, stringLiterals **strs,
   }
   if (!ir->next)
     return 0;
-  return optimizeMoveIRecur(ir->next, strs, floats, id, val, changed);
+  return optimizeMoveIRecur(ir->next,ir, strs, floats, id, val, changed);
 }
 int optimizeMoveI(instrList *ir, stringLiterals **strs, floatLiterals **floats,
                   int *changed) {
   if (!ir->next || !ir->next->next)
     return 0;
   instrList *next = ir->next;
-  int ret = optimizeMoveIRecur(next, strs, floats, ir->instr.arg1,
+  int ret = optimizeMoveIRecur(next,ir, strs, floats, ir->instr.arg1,
                                ir->instr.num, changed);
   if (ret == -1) {
     fprintf(stderr, "Unable to apply MoveI optimizatiion\n");
@@ -368,11 +382,11 @@ int optimizeArith(instrList *ir, stringLiterals **strs, floatLiterals **floats,
     char *t2 = ir->next->instr.arg1;
     char *t3 = ir->next->instr.arg2;
     if (!strcmp(t0, t3)) {
-      ir->instr.arg1 = t2;
-      instrList *nextIr = ir->next->next;
-      free(ir->next);
-      ir->next = nextIr;
-      *changed = 1;
+        ir->instr.arg1 = t2;
+        instrList *nextIr = ir->next->next;
+        free(ir->next);
+        ir->next = nextIr;
+        *changed = 1;
     }
   } break;
   default:
@@ -390,18 +404,19 @@ instrList *optimizeIR(instrList *ir, stringLiterals **strs,
   *changed = 0;
 
   instrList *head = ir;
+  instrList*prev =NULL;
   // printInstructions(ir);
   while (head) {
     switch (head->instr.opcode) {
     case LOADADRESS: {
       int tChanged = 0;
-      if (!optimizeLoadAdress(head, &tChanged)) {
+      if (!optimizeLoadAdress(head,prev, &tChanged)) {
         fprintf(stderr, "Optimizer error while optimizing LoadAdress\n");
         return NULL;
       }
       if (tChanged) {
         *changed = 1;
-        head->instr.opcode = NOP;
+          continue;
       }
     } break;
     case ADDI:
@@ -444,6 +459,7 @@ instrList *optimizeIR(instrList *ir, stringLiterals **strs,
     default:
       break;
     }
+    prev = head;
     head = head->next;
   }
   // printInstructions(ir);
