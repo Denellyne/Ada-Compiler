@@ -5,37 +5,40 @@ INCLUDES := ./lex.yy.c ./parser.tab.c $(shell find . -name '*.c')
 OBJ_TEMP =  $(patsubst %.c,%.o,$(INCLUDES))
 OBJ = $(sort $(OBJ_TEMP))
 
-
 all : build
 
-%.o: %.c 
-	@echo "Compiling $@"
-	@$(CXX) $(CFLAGS) -c $< -o $@  	
+parser.tab.c parser.tab.h: Parser/parser.y
+        @bison -Wcounterexamples -d $<
 
-parser :
-	@bison -Wcounterexamples -d Parser/parser.y
+lex.yy.c: Lexer/lexer.x parser.tab.h
+        @flex $<
 
-lex : 
-	@flex Lexer/lexer.x
+lex.yy.o: lex.yy.c
 
-release : parser lex $(OBJ)
-	@echo "Builidng executable"
-	@mkdir -p ../bin
-	$(CXX) -O2 -o $(OUTPUT) $(OBJ) -lm
-	@echo "Done"
+$(OBJ): parser.tab.h lex.yy.c
 
-build : parser lex $(OBJ)
-	@echo "Builidng executable"
-	@mkdir -p ../bin
-	$(CXX) -g -o $(OUTPUT) $(OBJ) -lm
-	@echo "Done"
+%.o: %.c
+        @echo "Compiling $@"
+        @$(CXX) $(CFLAGS) -c $< -o $@
+
+release : $(OBJ)
+        @echo "Builidng executable"
+        @mkdir -p ../bin
+        $(CXX) -O2 -o $(OUTPUT) $(OBJ) -lm
+        @echo "Done"
+
+build : $(OBJ)
+        @echo "Builidng executable"
+        @mkdir -p ../bin
+        $(CXX) -g -o $(OUTPUT) $(OBJ) -lm
+        @echo "Done"
 
 run : build
-	@echo "Running..."
-	$(OUTPUT)
+        @echo "Running..."
+        $(OUTPUT)
 
 test:
-	@bash ../tests/test.sh
-	
+        @bash ../tests/test.sh
+
 clean :
-	rm lex.yy.c parser.tab.h parser.tab.c $(OUTPUT) $(OBJ)
+        rm lex.yy.c parser.tab.h parser.tab.c $(OUTPUT) $(OBJ)
