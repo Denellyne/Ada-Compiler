@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 testASM() {
   if [[ -e mars.jar && -e "$1.txt" ]]; then
