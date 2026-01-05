@@ -8,10 +8,10 @@ OBJ = $(sort $(OBJ_TEMP))
 all : build
 
 parser.tab.c parser.tab.h: Parser/parser.y
-        @bison -Wcounterexamples -d $<
+	@bison -Wcounterexamples -d $<
 
 lex.yy.c: Lexer/lexer.x parser.tab.h
-        @flex $<
+	@flex $<
 
 lex.yy.o: lex.yy.c
 
@@ -38,7 +38,7 @@ run : build
         $(OUTPUT)
 
 test :
-        @bash ../tests/test.sh
+	@bash ../tests/test.sh
 
 clean :
-        rm lex.yy.c parser.tab.h parser.tab.c $(OUTPUT) $(OBJ)
+	rm lex.yy.c parser.tab.h parser.tab.c $(OUTPUT) $(OBJ)
