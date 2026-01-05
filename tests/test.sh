@@ -66,3 +66,8 @@ echo -e -n " |\033[0;32m Success:$successes\033[0m |"
 echo -e "\033[0;31m Fail:$fails\033[0m"
 
 rm -f *.in *.adb *.bin *.txt *.out >/dev/null 2>&1
+
+# For Github Actions
+if [ "$fail" -ne 0 ]; then
+    exit 1
+fi
